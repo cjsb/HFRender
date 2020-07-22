@@ -181,9 +181,7 @@ bool HFRender::Render()
 		ImGui::NewFrame();
 
 		// render your GUI
-		ImGui::Begin("Demo window");
-		ImGui::Button("Hello!");
-		ImGui::End();
+		ImGui::ShowDemoWindow();
 
 		// Rendering
 		ImGui::Render();

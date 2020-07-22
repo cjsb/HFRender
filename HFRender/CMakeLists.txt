@@ -13,6 +13,7 @@ set(IMGUI_FILES
 	${THIRD_PARTY_PATH}/src/ImGui/imgui.cpp
 	${THIRD_PARTY_PATH}/src/ImGui/imgui_draw.cpp
 	${THIRD_PARTY_PATH}/src/ImGui/imgui_widgets.cpp
+	${THIRD_PARTY_PATH}/src/ImGui/imgui_demo.cpp
 )
 
 set(SOURCE_FILES
