@@ -1,7 +1,6 @@
 ﻿#pragma once
 #include <iostream>
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
+#include "opengl_common.h"
 #include "camera.h"
 
 const float DEFAULT_CAMERA_MOVE_SPEED = 500.0f;
@@ -10,6 +9,17 @@ const float DEFAULT_MOUSE_SENSITIVITY = 0.001f;
 class HFRender
 {
 public:
+	enum class RenderMode:int
+	{
+		Forward=0,
+		Deferred
+	};
+
+	struct Config
+	{
+		RenderMode render_mode = RenderMode::Forward;
+	};
+
 	HFRender() {}
 	~HFRender() {}
 
@@ -25,6 +35,8 @@ public:
 private:
 	bool InitGlfw();
 	bool InitGlad();
+	void RenderImGui();
+
 	void ProcessInput();
 	void ProcessMouseMovement(float xoffset, float yoffset);
 	void ProcessMouseScroll(float yoffset);
@@ -40,6 +52,7 @@ private:
 
 	GLFWwindow* m_window;
 	Camera m_camera;
+	Config m_config;
 
 	static HFRender* s_inst;
 };

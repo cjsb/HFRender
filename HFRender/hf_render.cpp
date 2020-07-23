@@ -1,7 +1,6 @@
 ﻿#include "hf_render.h"
 #include <ImGui/imgui_impl_glfw.h>
 #include <ImGui/imgui_impl_opengl3.h>
-#include <glm/gtx/rotate_vector.hpp>
 
 const char* glsl_version = "#version 330";
 HFRender* HFRender::s_inst = new HFRender();
@@ -151,6 +150,8 @@ bool HFRender::Init(int width, int height)
 	ImGui_ImplGlfw_InitForOpenGL(m_window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
+
+
 	return true;
 }
 
@@ -168,6 +169,18 @@ void HFRender::Destroy()
 	glfwTerminate();
 }
 
+void HFRender::RenderImGui()
+{
+	//ImGui::ShowDemoWindow();
+	ImGui::Begin("Config");
+
+	ImGui::LabelText("label", "Value");
+	const char* items[] = { "Forward", "Deferred" };
+	ImGui::Combo("Render mode", reinterpret_cast<int*>(&m_config.render_mode), items, IM_ARRAYSIZE(items));
+
+	ImGui::End();
+}
+
 bool HFRender::Render()
 {
 
@@ -181,7 +194,7 @@ bool HFRender::Render()
 		ImGui::NewFrame();
 
 		// render your GUI
-		ImGui::ShowDemoWindow();
+		RenderImGui();
 
 		// Rendering
 		ImGui::Render();
@@ -194,6 +207,8 @@ bool HFRender::Render()
 
 		glfwSwapBuffers(m_window);
 	}
+
+	std::cout << static_cast<int>(m_config.render_mode) << std::endl;
 
 	return true;
 }

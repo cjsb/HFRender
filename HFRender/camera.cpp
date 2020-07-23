@@ -28,6 +28,12 @@ void Camera::LookAt(const glm::vec3& target)
 	UpdateViewMatrix();
 }
 
+void Camera::FillViewContext(ViewContext& vc)
+{
+	vc.SetViewMat(m_view_mat);
+	vc.SetProjMat(m_proj_mat);
+}
+
 void Camera::UpdateViewMatrix()
 {
 	glm::vec3 target = m_position + m_forward;

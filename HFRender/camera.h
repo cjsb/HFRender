@@ -1,6 +1,5 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <glm/gtx/transform.hpp>
+#include "render_context.h"
 
 class Camera
 {
@@ -18,6 +17,7 @@ public:
 	const glm::vec3& GetRight() const { return m_right; }
 	const glm::vec3& GetUp() const { return m_up; }
 	void LookAt(const glm::vec3& target);
+	void FillViewContext(ViewContext& vc);
 private:
 	void UpdateViewMatrix();
 
