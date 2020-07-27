@@ -1,9 +1,12 @@
-#include "framebuffer.h"
+#include "frame_buffer.h"
 
-Framebuffer::Framebuffer()
+Framebuffer::Framebuffer(bool is_default)
 {
-	glGenFramebuffers(1, &m_id);
-	GL_CHECK_ERROR;
+	if (!is_default)
+	{
+		glGenFramebuffers(1, &m_id);
+		GL_CHECK_ERROR;
+	}
 }
 
 Framebuffer::~Framebuffer()
@@ -19,7 +22,6 @@ Framebuffer::~Framebuffer()
 void Framebuffer::AttachColorBuffer(RenderSurfacePtr&& color_surface)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-	GL_CHECK_ERROR;
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_surface->GetId());
 	GL_CHECK_ERROR;
 	m_renderbuffers.emplace_back(std::move(color_surface));
@@ -28,29 +30,34 @@ void Framebuffer::AttachColorBuffer(RenderSurfacePtr&& color_surface)
 void Framebuffer::AttachDepthBuffer(RenderSurfacePtr&& depth_surface)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-	GL_CHECK_ERROR;
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth_surface->GetId());
 	GL_CHECK_ERROR;
 	m_renderbuffers.emplace_back(std::move(depth_surface));
 }
 
-void Framebuffer::AttachColorTexture(TexturePtr&& color_texture)
+void Framebuffer::AttachColorTexture2D(Texture2DPtr&& color_texture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-	GL_CHECK_ERROR;
 	glFramebufferTexture2D(GL_FRAMEBUFFER, m_color_attachment, GL_TEXTURE_2D, color_texture->GetId(), 0);
 	GL_CHECK_ERROR;
-	m_textures.emplace_back(std::move(color_texture));
+	m_texture2Ds.emplace_back(std::move(color_texture));
 	m_color_attachment++;
 }
 
-void Framebuffer::AttachDepthTexture(TexturePtr&& depth_texture)
+void Framebuffer::AttachDepthTexture(Texture2DPtr&& depth_texture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-	GL_CHECK_ERROR;
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth_texture->GetId(), 0);
 	GL_CHECK_ERROR;
-	m_textures.emplace_back(std::move(depth_texture));
+	m_depth_texture = std::move(depth_texture);
+}
+
+void Framebuffer::AttachImage(ITexturePtr&& texture, GLenum access)
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
+	glBindImageTexture(texture->GetTextureUnit(), texture->GetId(), 0, GL_TRUE, 0, access, texture->GetInternalFormat());
+	GL_CHECK_ERROR;
+	m_images.emplace_back(std::move(texture));
 }
 
 bool Framebuffer::CheckStatus()

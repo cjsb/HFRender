@@ -1,5 +1,6 @@
 #include <typeindex>
 #include "material.h"
+#include "config.h"
 
 void Material::Apply()
 {
@@ -45,19 +46,25 @@ void Material::Apply()
 		{
 			m_shader->SetBool(it.first, std::any_cast<bool>(value));
 		}
+		else if (ti == std::type_index(typeid(ITexturePtr)))
+		{
+			ITexturePtr texture = std::any_cast<ITexturePtr>(value);
+			m_shader->SetTexture(it.first, texture);
+		}
 	}
 }
 
 std::shared_ptr<Material> Material::GetDefaultMaterial()
 {
 	ParamTable params = { {"albedo", glm::vec4(0.f, 1.f, 0.f, 1.f)} };
-	return CreateMaterial("./shader/default.vs", "./shader/default.fs", std::move(params));
+	return Material::CreateMaterial(Config::Instance()->project_path + "shader/default.vs",
+		Config::Instance()->project_path + "shader/default.fs", "", std::move(params));
 }
 
-std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, const std::string& fs_path, ParamTable&& params)
+std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path, ParamTable&& params)
 {
 	ShaderPtr shader = std::make_shared<Shader>();
-	if (!shader->Init(vs_path.cstr(), fs_path.cstr()))
+	if (!shader->Init(vs_path, fs_path, gs_path))
 	{
 		return std::shared_ptr<Material>();
 	}

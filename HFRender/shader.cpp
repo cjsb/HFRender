@@ -21,6 +21,12 @@ bool Shader::Init(const std::string& vs_path, const std::string& fs_path, const 
         // Open files
         std::ifstream vertexShaderFile(vs_path);
         std::ifstream fragmentShaderFile(fs_path);
+        if (vertexShaderFile.fail() || fragmentShaderFile.fail())
+        {
+            std::cout << "ERROR::SHADER: Failed to open vertex or fragment shader files" << std::endl;
+            return false;
+        }
+
         std::stringstream vShaderStream, fShaderStream;
         // Read file's buffer contents into streams
         vShaderStream << vertexShaderFile.rdbuf();
@@ -35,6 +41,12 @@ bool Shader::Init(const std::string& vs_path, const std::string& fs_path, const 
         if (!gs_path.empty())
         {
             std::ifstream geometryShaderFile(gs_path);
+            if (geometryShaderFile.fail())
+            {
+                std::cout << "ERROR::SHADER: Failed to open geometry shader files" << std::endl;
+                return false;
+            }
+
             std::stringstream gShaderStream;
             gShaderStream << geometryShaderFile.rdbuf();
             geometryShaderFile.close();
@@ -83,13 +95,13 @@ bool Shader::Init(const std::string& vs_path, const std::string& fs_path, const 
     }
 
     // Shader Program
-    this->ID = glCreateProgram();
-    glAttachShader(this->ID, sVertex);
-    glAttachShader(this->ID, sFragment);
+    this->m_id = glCreateProgram();
+    glAttachShader(this->m_id, sVertex);
+    glAttachShader(this->m_id, sFragment);
     if (!geometryCode.empty())
-        glAttachShader(this->ID, gShader);
-    glLinkProgram(this->ID);
-    if (!checkCompileErrors(this->ID, "PROGRAM"))
+        glAttachShader(this->m_id, gShader);
+    glLinkProgram(this->m_id);
+    if (!checkCompileErrors(this->m_id, "PROGRAM"))
     {
         return false;
     }
@@ -183,6 +195,12 @@ void Shader::Set2FloatV(const std::string& name, const GLfloat values[][2], int 
 {
     glUniform2fv(GetUniformLocation(name), num, (GLfloat*)values);
     GL_CHECK_ERROR;
+}
+
+void Shader::SetTexture(const std::string& name, const ITexturePtr& texture)const
+{
+    texture->Activate();
+    glUniform1i(GetUniformLocation(name), texture->GetTextureUnit());
 }
 
 bool Shader::checkCompileErrors(GLuint object, std::string type)

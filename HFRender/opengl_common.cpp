@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <cstring>
-#include "gl_common.h"
+#include "opengl_common.h"
 
 const char* GLenumToString(GLenum value)
 {

@@ -3,7 +3,7 @@
 Camera::Camera()
 {
 	LookAt(glm::vec3(1.f, 0.f, 0.f));
-	m_proj_mat = glm::perspective(glm::radians(45.f), 1024.f / 768.f, 10.0f, 8000.0f);
+	m_proj_mat = glm::perspective(glm::radians(45.f), 1024.f / 768.f, 0.1f, 10.0f);
 }
 
 void Camera::SetPosition(const glm::vec3& pos)

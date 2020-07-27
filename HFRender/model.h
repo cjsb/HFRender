@@ -15,7 +15,7 @@ class ModelData
 public:
 	ModelData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 	~ModelData();
-	void FillRenderContext(const RenderContextPtr& render_context);
+	void FillRenderContext(RenderContext* const render_context);
 
 private:
 	void CreateGraphicResources();
@@ -41,7 +41,7 @@ typedef std::unique_ptr<IEntity> IEntityPtr;
 class ModelEntity : public IEntity
 {
 public:
-	ModelEntity(const glm::mat4& transform, const std::string& path);
+	ModelEntity(const std::string& path, const glm::mat4& transform, const MaterialPtr& material);
 	virtual void CommitRenderContext(ViewContext& view_context) override;
 	void SetMaterial(const MaterialPtr& material);
 	const std::string& GetPath() const { return m_path; }
@@ -52,7 +52,7 @@ protected:
 	glm::mat4 m_transform;
 	std::string m_path;
 	ModelDataPtr m_model_data;
-	RenderContextPtr m_rc;
+	RenderContext m_rc;
 	MaterialPtr m_material;
 };
 typedef std::unique_ptr<ModelEntity> ModelEntityPtr;
@@ -71,7 +71,7 @@ public:
 	void SetEnableErase(bool is_enable_erase_data) { m_is_enable_erase_data = is_enable_erase_data; }
 protected:
 	ModelLoader() {}
-	void LoadMesh(const std::string& path);
+	ModelDataPtr LoadMesh(const std::string& path);
 
 	std::unordered_map<std::string, ModelDataPtr> m_model_cache;
 	bool m_is_enable_erase_data = false;

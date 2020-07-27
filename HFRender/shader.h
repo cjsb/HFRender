@@ -1,6 +1,8 @@
 #pragma once
 #include <unordered_map>
+#include <memory>
 #include "opengl_common.h"
+#include "texture.h"
 
 class Shader
 {
@@ -16,6 +18,7 @@ public:
 
     // Sets the current shader as active
     Shader* Use();
+    GLuint GetId() { return m_id; }
     // Compiles the shader from given source code
     bool Init(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path); // Note: geometry source code is optional 
     // Utility functions
@@ -34,6 +37,7 @@ public:
     void SetIntegerV(const std::string& name, const GLint* values, int num)const;
     void SetFloatV(const std::string& name, const GLfloat* values, int num)const;
     void Set2FloatV(const std::string& name, const GLfloat values[][2], int num)const;
+    void SetTexture(const std::string& name, const ITexturePtr& texture)const;
     
 private:
     // Checks if compilation or linking failed and if so, print the error logs

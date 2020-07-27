@@ -2,37 +2,31 @@
 #include <iostream>
 #include "opengl_common.h"
 #include "camera.h"
+#include "world.h"
+#include "config.h"
 
-const float DEFAULT_CAMERA_MOVE_SPEED = 500.0f;
+const float DEFAULT_CAMERA_MOVE_SPEED = 1.f;
 const float DEFAULT_MOUSE_SENSITIVITY = 0.001f;
 
 class HFRender
 {
 public:
-	enum class RenderMode:int
-	{
-		Forward=0,
-		Deferred
-	};
-
-	struct Config
-	{
-		RenderMode render_mode = RenderMode::Forward;
-	};
-
-	HFRender() {}
 	~HFRender() {}
 
-	bool Init(int width, int height);
-	void Destroy();
-
-	bool Render();
 	static HFRender* Instance()
 	{
 		return s_inst;
 	}
 
+	bool Init(int width, int height);
+	void Destroy();
+
+	bool Render();
+	void CreateWorld();
+	void Voxelization();
+
 private:
+	HFRender() {}
 	bool InitGlfw();
 	bool InitGlad();
 	void RenderImGui();
@@ -52,7 +46,8 @@ private:
 
 	GLFWwindow* m_window;
 	Camera m_camera;
-	Config m_config;
+	World m_world;
+	ViewContext m_vc;
 
 	static HFRender* s_inst;
 };

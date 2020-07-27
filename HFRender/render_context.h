@@ -2,7 +2,7 @@
 #include <unordered_set>
 #include "shader.h"
 #include "material.h"
-#include "framebuffer.h"
+#include "frame_buffer.h"
 
 class ViewContext;
 
@@ -28,8 +28,6 @@ protected:
 	GLvoid* m_index_offset = 0;
 };
 
-typedef std::shared_ptr<RenderContext> RenderContextPtr;
-
 class ViewContext
 {
 public:
@@ -44,9 +42,11 @@ public:
 	void SetStencilStates(bool stencil_enable, GLenum stencil_func, GLenum stencil_fail_op,
 		GLenum depth_fail_op, GLenum pass_op, GLuint stencil_read_mask, GLuint stencil_write_mask,
 		GLint stencil_ref);
+	void SetCullFace(bool cull_face_enabled) { m_cull_face_enabled = cull_face_enabled; }
+	void SetBlend(bool blend_enabled) { m_blend_enabled = blend_enabled; }
 	const FramebufferPtr& GetFramebuffer() const { return m_fb; }
-	void SetFramebuffer(const std::shared_ptr<Framebuffer>& fb) { m_fb = fb; }
-	void AddRenderContext(const RenderContextPtr& rc)
+	void SetFramebuffer(const FramebufferPtr& fb) { m_fb = fb; }
+	void AddRenderContext(RenderContext* rc)
 	{
 		m_rcs.emplace_back(rc);
 	}
@@ -72,7 +72,7 @@ protected:
 
 	glm::mat4 m_view;
 	glm::mat4 m_proj;
-	std::vector<RenderContextPtr> m_rcs;
+	std::vector<RenderContext*> m_rcs;
 	FramebufferPtr m_fb; // a nullptr represents the backbuffer
 
 	// some view level render states
@@ -91,5 +91,8 @@ protected:
 	GLuint m_stencil_read_mask = 0xFF;
 	GLuint m_stencil_write_mask = 0xFF;
 	GLint m_stencil_ref = 0;
+
+	bool m_cull_face_enabled = true;
+	bool m_blend_enabled = false;
 };
 

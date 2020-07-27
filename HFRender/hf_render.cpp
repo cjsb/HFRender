@@ -2,7 +2,7 @@
 #include <ImGui/imgui_impl_glfw.h>
 #include <ImGui/imgui_impl_opengl3.h>
 
-const char* glsl_version = "#version 330";
+const char* glsl_version = "#version 450 core";
 HFRender* HFRender::s_inst = new HFRender();
 
 void HFRender::ProcessInput()
@@ -69,6 +69,8 @@ void HFRender::ProcessMouseScroll(float yoffset)
 
 void HFRender::FramebufferSizeCallback(GLFWwindow* window, int width, int height)
 {
+	Config::Instance()->width = width;
+	Config::Instance()->height = height;
 	glViewport(0, 0, width, height);
 }
 
@@ -92,8 +94,8 @@ bool HFRender::InitGlfw()
 	}
 
 	// 配置GLFW
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);  // 指定OpenGL主版本号
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);  // 指定OpenGL次版本号
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);  // 指定OpenGL主版本号
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);  // 指定OpenGL次版本号
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 指定核心模式
 	return true;
 }
@@ -111,6 +113,9 @@ bool HFRender::InitGlad()
 
 bool HFRender::Init(int width, int height)
 {
+	Config::Instance()->width = width;
+	Config::Instance()->height = height;
+
 	if (!InitGlfw())
 	{
 		return false;
@@ -150,8 +155,6 @@ bool HFRender::Init(int width, int height)
 	ImGui_ImplGlfw_InitForOpenGL(m_window, true);
 	ImGui_ImplOpenGL3_Init(glsl_version);
 
-
-
 	return true;
 }
 
@@ -176,47 +179,86 @@ void HFRender::RenderImGui()
 
 	ImGui::LabelText("label", "Value");
 	const char* items[] = { "Forward", "Deferred" };
-	ImGui::Combo("Render mode", reinterpret_cast<int*>(&m_config.render_mode), items, IM_ARRAYSIZE(items));
+	ImGui::Combo("Render mode", reinterpret_cast<int*>(&Config::Instance()->render_mode), items, IM_ARRAYSIZE(items));
 
 	ImGui::End();
 }
 
 bool HFRender::Render()
 {
+	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
+
+	m_world.CommitRenderContext(m_vc);
 
 	while (!glfwWindowShouldClose(m_window))
 	{
 		glfwPollEvents();
 		ProcessInput();
 
+		// feed inputs to dear imgui, start new frame
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
+		// render world
+		m_camera.FillViewContext(m_vc);
+		m_vc.FlushRenderContext(false);
+
 		// render your GUI
 		RenderImGui();
 
-		// Rendering
+		// Render dear imgui into screen
 		ImGui::Render();
-		int display_w, display_h;
-		glfwGetFramebufferSize(m_window, &display_w, &display_h);
-		glViewport(0, 0, display_w, display_h);
-		glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
-		glClear(GL_COLOR_BUFFER_BIT);
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		glfwSwapBuffers(m_window);
 	}
 
-	std::cout << static_cast<int>(m_config.render_mode) << std::endl;
+	std::cout << static_cast<int>(Config::Instance()->render_mode) << std::endl;
 
 	return true;
 }
 
+void HFRender::Voxelization()
+{
+	uint32_t voxelTextureSize = 64;
+	Texture3DPtr texture = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, true);
+
+	MaterialPtr material;
+	ParamTable params = { {"texture3D", texture} };
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelization.vert",
+		Config::Instance()->project_path + "shader/voxelization.frag", 
+		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params));
+
+	FramebufferPtr defaultFBO = std::make_shared<Framebuffer>(true);
+	defaultFBO->AttachImage(std::move(texture), GL_WRITE_ONLY);
+
+	ViewContext vc;
+	vc.SetColorMask(glm::bvec4(false));
+	vc.SetDepthStates(false, false, GL_LESS);
+	vc.SetCullFace(false);
+	vc.SetBlend(false);
+	vc.SetFramebuffer(defaultFBO);
+
+	glViewport(0, 0, voxelTextureSize, voxelTextureSize);
+
+}
+
+void HFRender::CreateWorld()
+{
+	m_camera.SetPosition(glm::vec3(0, 0.5, 3));
+	m_camera.SetForward(glm::vec3(0, 0, -1));
+
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", glm::mat4(1), "bunny");
+	
+}
+
 int main()
 {
-	HFRender render;
-	render.Init(1024, 780);
+	Config::Instance()->project_path = "C:/Users/wanglingye/wly/project/HFRender/";
+	HFRender* render = HFRender::Instance();
+	render->Init(1024, 780);
 
-	render.Render();
+	render->CreateWorld();
+	render->Render();
 }

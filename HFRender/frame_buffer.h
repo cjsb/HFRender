@@ -7,12 +7,13 @@
 class Framebuffer
 {
 public:
-	Framebuffer();
+	Framebuffer(bool is_default = false);
 	~Framebuffer();
 	void AttachColorBuffer(RenderSurfacePtr&& color_surface);
 	void AttachDepthBuffer(RenderSurfacePtr&& depth_surface);
-	void AttachColorTexture(TexturePtr&& color_texture);
-	void AttachDepthTexture(TexturePtr&& depth_texture);
+	void AttachColorTexture2D(Texture2DPtr&& color_texture);
+	void AttachDepthTexture(Texture2DPtr&& depth_texture);
+	void AttachImage(ITexturePtr&& texture, GLenum access);
 	bool CheckStatus();
 	void Use();
 
@@ -26,8 +27,11 @@ public:
 protected:
 	GLuint m_id = 0;
 	std::vector<RenderSurfacePtr> m_renderbuffers;
-	std::vector<TexturePtr> m_textures;
+	std::vector<Texture2DPtr> m_texture2Ds;
+	Texture2DPtr m_depth_texture;
 	GLuint m_color_attachment = GL_COLOR_ATTACHMENT0;
+
+	std::vector<ITexturePtr> m_images;
 
 	glm::vec4 m_clear_color = glm::vec4(0.f, 0.f, 0.f, 1.f);
 	float m_clear_depth = 1.f;

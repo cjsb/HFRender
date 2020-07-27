@@ -1,4 +1,5 @@
 #include "world.h"
+#include "config.h"
 
 World::World()
 {
@@ -13,8 +14,9 @@ void World::CommitRenderContext(ViewContext& view_context)
 	}
 }
 
-void World::AddModelEntity(const std::string& path,const glm::mat4 transform, const std::string& name)
+void World::AddModelEntity(const std::string& path, const glm::mat4& transform, const std::string& name)
 {
-	ModelEntityPtr model_entity = std::make_unique<ModelEntity>(transform, path);
-	m_entities.emplace(std::move(name), std::move(model_entity));
+	MaterialPtr default_material = Material::GetDefaultMaterial();
+	ModelEntityPtr model_entity = std::make_unique<ModelEntity>(path, transform, default_material);
+	m_entities.emplace(name, std::move(model_entity));
 }

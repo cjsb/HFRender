@@ -45,51 +45,58 @@ void ViewContext::SetStencilStates(bool stencil_enable, GLenum stencil_func, GLe
 void ViewContext::ApplyRenderStates()
 {
 	glPolygonMode(GL_FRONT_AND_BACK, m_polygon_mode);
-	GL_CHECK_ERROR;
 
 	glColorMask(
 		m_color_mask.r ? GL_TRUE : GL_FALSE,
 		m_color_mask.g ? GL_TRUE : GL_FALSE,
 		m_color_mask.b ? GL_TRUE : GL_FALSE,
 		m_color_mask.a ? GL_TRUE : GL_FALSE);
-	GL_CHECK_ERROR;
 
 	if (m_depth_test_enabled)
 	{
 		glEnable(GL_DEPTH_TEST);
-		GL_CHECK_ERROR;
 
 		glDepthMask(m_depth_mask ? GL_TRUE : GL_FALSE);
-		GL_CHECK_ERROR;
 
 		glDepthFunc(m_depth_func);
-		GL_CHECK_ERROR;
 	}
 	else
 	{
 		glDisable(GL_DEPTH_TEST);
-		GL_CHECK_ERROR;
 	}
 
 	if (m_stencil_enable)
 	{
 		glEnable(GL_STENCIL_TEST);
-		GL_CHECK_ERROR;
 	}
 	else
 	{
 		glDisable(GL_STENCIL_TEST);
-		GL_CHECK_ERROR;
 	}
 
 	glStencilFunc(m_stencil_func, m_stencil_ref, m_stencil_read_mask);
-	GL_CHECK_ERROR;
 
 	glStencilOp(m_stencil_fail_op, m_depth_fail_op, m_pass_op);
-	GL_CHECK_ERROR;
 
 	glStencilMask(m_stencil_write_mask);
-	GL_CHECK_ERROR;
+
+	if (m_cull_face_enabled)
+	{
+		glEnable(GL_CULL_FACE);
+	}
+	else
+	{
+		glDisable(GL_CULL_FACE);
+	}
+
+	if (m_blend_enabled)
+	{
+		glEnable(GL_BLEND);
+	}
+	else
+	{
+		glDisable(GL_BLEND);
+	}
 }
 
 void ViewContext::ApplyFrameBuffer()

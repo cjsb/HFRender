@@ -1,7 +1,9 @@
 #include "model.h"
+#include <iostream>
 #include <sstream>
 #include <fstream>
 #include <unordered_map>
+#include "helpers.h"
 
 ModelData::ModelData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
@@ -21,7 +23,7 @@ ModelData::~ModelData()
 	}
 }
 
-void ModelData::FillRenderContext(const RenderContextPtr& render_context)
+void ModelData::FillRenderContext(RenderContext* const render_context)
 {
 	if (!m_graphic_resources_inited)
 	{
@@ -50,43 +52,47 @@ void ModelData::CreateGraphicResources()
 	m_ib->Bind();
 
 	// 声明顶点数据格式
+    glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, m_stride, 0);
 	GL_CHECK_ERROR;
 
-	glEnableVertexAttribArray(0);
-	GL_CHECK_ERROR;
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, m_stride, (GLvoid*)offsetof(Vertex, Vertex::normal));
+    GL_CHECK_ERROR;
 
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, m_stride, (GLvoid*)offsetof(Vertex, Vertex::uv));
+    GL_CHECK_ERROR;
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	GL_CHECK_ERROR;
-
 	glBindVertexArray(0);
-	GL_CHECK_ERROR;
+    GL_CHECK_ERROR;
 }
 
-ModelEntity::ModelEntity(const glm::mat4& transform, const std::string& path) :m_transform(transform), m_path(path)
+ModelEntity::ModelEntity(const std::string& path, const glm::mat4& transform, const MaterialPtr& material) :m_path(path), m_transform(transform), m_material(material)
 {
-	m_rc = std::make_shared<RenderContext>();
-	m_rc->SetTransform(m_transform);
-	m_rc->SetMaterial(m_material);
+	m_rc.SetTransform(transform);
+    m_rc.SetMaterial(material);
 
 	m_model_data = ModelLoader::Instance()->LoadModel(path);
 	if (m_model_data)
 	{
-		m_model_data->FillRenderContext(m_rc);
+		m_model_data->FillRenderContext(&m_rc);
 	}
 }
 
 void ModelEntity::SetMaterial(const MaterialPtr& material)
 {
 	m_material = material;
-	m_rc->SetMaterial(material);
+	m_rc.SetMaterial(material);
 }
 
 void ModelEntity::CommitRenderContext(ViewContext& view_context)
 {
 	if (m_model_data)
 	{
-		view_context.AddRenderContext(rc);
+		view_context.AddRenderContext(&m_rc);
 	}
 }
 
@@ -138,14 +144,18 @@ void ModelLoader::ClearCache(const std::string& path)
 
 ModelDataPtr ModelLoader::LoadMesh(const std::string& path)
 {
-    std::ifstream in(file, std::ios::in);
-    if (in.fail()) return ModelDataPtr();
+    std::ifstream in(path, std::ios::in);
+    if (in.fail())
+    {
+        std::cout << "obj file open failed: " << path << std::endl;
+        return ModelDataPtr();
+    }
 
     std::vector<glm::vec3> points;
     std::vector<glm::vec2> uvs;
     std::vector<glm::vec3> normals;
     std::vector<glm::ivec3> ids;
-    int count = -1;
+
     while (!in.eof())
     {
         std::string line;
@@ -182,34 +192,38 @@ ModelDataPtr ModelLoader::LoadMesh(const std::string& path)
         }
         else if (!line.compare(0, 2, "f "))
         {
-            if (count < 0)
-            {
-                count = 0;
-                for (auto iter : line)
-                {
-                    if (iter == '/')
-                        count++;
-                }
-                count /= 3;
-                assert(count < 3);
-            }
-
             iss >> trash;
-            for (int i = 0; i < 3; i++)
+            if (line.find("//") != std::string::npos)
             {
-                glm::ivec3 id(0);
-
-                iss >> id.x;
-                if (count > 0)
+                for (size_t i = 0;i < 3;i++)
                 {
-                    iss >> trash >> id.y;
+                    glm::ivec3 id(0);
+                    iss >> id.x >> trash >> trash >> id.z;
+                    ids.push_back(id);
                 }
-                if (count > 1)
+            }
+            else
+            {
+                int count = std::count(line.begin(), line.end(), '/');
+                count /= 3;
+                if (count <= 2)
                 {
-                    iss >> trash >> id.z;
+                    for (size_t i = 0;i < 3;i++)
+                    {
+                        glm::ivec3 id(0);
+                        iss >> id.x;
+                        for (size_t j = 1;j <= count;j++)
+                        {
+                            iss >> trash >> id[j];
+                        }
+                        ids.push_back(id);
+                    }
                 }
-
-                ids.push_back(id);
+                else
+                {
+                    std::cout << "obj file is error: " << path << std::endl;
+                    return ModelDataPtr();
+                }
             }
         }
     }
@@ -223,7 +237,7 @@ ModelDataPtr ModelLoader::LoadMesh(const std::string& path)
         auto it = vtx_map.find(key);
         if (it != vtx_map.end())
         {
-            indices.push_back(it.second);
+            indices.push_back(it->second);
         }
         else
         {
@@ -232,11 +246,11 @@ ModelDataPtr ModelLoader::LoadMesh(const std::string& path)
             vertex.position = points[id.x - 1];
             if (id.y > 0)
             {
-                vertex.normal = normals[id.y - 1];
+                vertex.uv = uvs[id.y - 1];
             }
             if (id.z > 0)
             {
-                vertex.uv = uvs[id.z - 1];
+                vertex.normal = normals[id.z - 1];
             }
             
             vertices.push_back(vertex);
