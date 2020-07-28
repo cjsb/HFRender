@@ -36,7 +36,7 @@ void main() {
 	for(uint step = 0; step < numberOfSteps && color.a < 0.99f; ++step) {
 		const vec3 currentPoint = origin + STEP_LENGTH * step * direction;
 		vec3 coordinate = scaleAndBias(currentPoint);
-		vec4 currentSample = textureLod(texture3D, scaleAndBias(currentPoint), mipmapLevel);
+		vec4 currentSample = textureLod(texture3D, coordinate, mipmapLevel);
 		color += (1.0f - color.a) * currentSample;
 	} 
 	color.rgb = pow(color.rgb, vec3(1.0 / 2.2));

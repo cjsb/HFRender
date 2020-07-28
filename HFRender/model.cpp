@@ -64,8 +64,10 @@ void ModelData::CreateGraphicResources()
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, m_stride, (GLvoid*)offsetof(Vertex, Vertex::uv));
     GL_CHECK_ERROR;
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+    //不能在解绑VAO之前解绑索引数组缓冲
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	glBindVertexArray(0);
     GL_CHECK_ERROR;
 }
@@ -90,7 +92,7 @@ void ModelEntity::SetMaterial(const MaterialPtr& material)
 
 void ModelEntity::CommitRenderContext(ViewContext& view_context)
 {
-	if (m_model_data)
+	if (m_model_data && (m_flag & 0x00000001))
 	{
 		view_context.AddRenderContext(&m_rc);
 	}
@@ -100,6 +102,18 @@ void ModelEntity::ClearModelData()
 {
 	m_model_data.reset();
 	ModelLoader::Instance()->ClearCache(m_path);
+}
+
+void ModelEntity::SetRenderEnable(bool enable)
+{
+    if (enable)
+    {
+        m_flag |= 0x00000001;
+    }
+    else
+    {
+        m_flag &= (~0x00000001);
+    }
 }
 
 ModelLoader* ModelLoader::s_inst = new ModelLoader();

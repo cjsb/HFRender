@@ -46,11 +46,11 @@ void Material::Apply()
 		{
 			m_shader->SetBool(it.first, std::any_cast<bool>(value));
 		}
-		else if (ti == std::type_index(typeid(ITexturePtr)))
-		{
-			ITexturePtr texture = std::any_cast<ITexturePtr>(value);
-			m_shader->SetTexture(it.first, texture);
-		}
+	}
+
+	for (const auto& it : m_texture_param)
+	{
+		m_shader->SetTexture(it.first, it.second);
 	}
 }
 
@@ -70,4 +70,16 @@ std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, c
 	}
 
 	return std::make_shared<Material>(std::move(shader), std::move(params));
+}
+
+std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path,
+	ParamTable&& params, TextureParamTable&& texture_param)
+{
+	ShaderPtr shader = std::make_shared<Shader>();
+	if (!shader->Init(vs_path, fs_path, gs_path))
+	{
+		return std::shared_ptr<Material>();
+	}
+
+	return std::make_shared<Material>(std::move(shader), std::move(params), std::move(texture_param));
 }

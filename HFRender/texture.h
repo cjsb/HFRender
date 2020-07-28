@@ -12,6 +12,7 @@ public:
 	virtual void SetTextureUnit(GLuint textureUnit) = 0;
 	virtual GLuint GetTextureUnit() = 0;
 	virtual GLenum GetInternalFormat() = 0;
+	virtual void GenerateMipmap() = 0;
 };
 
 typedef std::shared_ptr<ITexture> ITexturePtr;
@@ -27,12 +28,14 @@ public:
 	{
 		glActiveTexture(GL_TEXTURE0 + m_textureUnit);
 		glBindTexture(GL_TEXTURE_2D, m_id);
+		GL_CHECK_ERROR;
 	}
 
 	virtual GLuint GetId() override { return m_id; }
 	virtual void SetTextureUnit(GLuint textureUnit) override { m_textureUnit = textureUnit; }
 	virtual GLuint GetTextureUnit() override { return m_textureUnit; }
 	virtual GLenum GetInternalFormat()override { return m_internal_format; }
+	virtual void GenerateMipmap()override;
 private:
 	GLuint m_id;
 	uint32_t m_width;
@@ -46,7 +49,7 @@ typedef std::shared_ptr<Texture2D> Texture2DPtr;
 class Texture3D :public ITexture
 {
 public:
-	Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data, GLuint data_type = GL_UNSIGNED_BYTE, bool generateMipmaps = false);
+	Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data, GLenum data_type = GL_UNSIGNED_BYTE, bool generateMipmaps = false);
 
 	~Texture3D();
 
@@ -54,12 +57,15 @@ public:
 	{
 		glActiveTexture(GL_TEXTURE0 + m_textureUnit);
 		glBindTexture(GL_TEXTURE_3D, m_id);
+		GL_CHECK_ERROR;
 	}
 
 	virtual GLuint GetId() override { return m_id; }
 	virtual void SetTextureUnit(GLuint textureUnit) override { m_textureUnit = textureUnit; }
 	virtual GLuint GetTextureUnit() override { return m_textureUnit; }
 	virtual GLenum GetInternalFormat()override { return m_internal_format; }
+	virtual void GenerateMipmap()override;
+	void ReadTextureData(void* data, GLenum data_type);
 private:
 	GLuint m_id;
 	uint32_t m_width;

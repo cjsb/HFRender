@@ -4,13 +4,13 @@
 
 layout(location = 0) in vec3 position;
 
-uniform mat4 M;
-uniform mat4 V;
-uniform mat4 P;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
 
 out vec3 worldPosition;
 
 void main(){
-	worldPosition = vec3(M * vec4(position, 1));
-	gl_Position = P * V * vec4(worldPosition, 1);
+	worldPosition = vec3(model * vec4(position, 1));
+	gl_Position = projection * view * vec4(worldPosition, 1);
 }

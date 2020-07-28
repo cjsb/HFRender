@@ -22,9 +22,10 @@ Framebuffer::~Framebuffer()
 void Framebuffer::AttachColorBuffer(RenderSurfacePtr&& color_surface)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, color_surface->GetId());
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, m_color_attachment, GL_RENDERBUFFER, color_surface->GetId());
 	GL_CHECK_ERROR;
 	m_renderbuffers.emplace_back(std::move(color_surface));
+	m_color_attachment++;
 }
 
 void Framebuffer::AttachDepthBuffer(RenderSurfacePtr&& depth_surface)
@@ -35,29 +36,29 @@ void Framebuffer::AttachDepthBuffer(RenderSurfacePtr&& depth_surface)
 	m_renderbuffers.emplace_back(std::move(depth_surface));
 }
 
-void Framebuffer::AttachColorTexture2D(Texture2DPtr&& color_texture)
+void Framebuffer::AttachColorTexture(const Texture2DPtr& color_texture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, m_color_attachment, GL_TEXTURE_2D, color_texture->GetId(), 0);
 	GL_CHECK_ERROR;
-	m_texture2Ds.emplace_back(std::move(color_texture));
+	m_texture2Ds.emplace_back(color_texture);
 	m_color_attachment++;
 }
 
-void Framebuffer::AttachDepthTexture(Texture2DPtr&& depth_texture)
+void Framebuffer::AttachDepthTexture(const Texture2DPtr& depth_texture)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, depth_texture->GetId(), 0);
 	GL_CHECK_ERROR;
-	m_depth_texture = std::move(depth_texture);
+	m_depth_texture = depth_texture;
 }
 
-void Framebuffer::AttachImage(ITexturePtr&& texture, GLenum access)
+void Framebuffer::AttachImage(const ITexturePtr& texture, GLenum access)
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
 	glBindImageTexture(texture->GetTextureUnit(), texture->GetId(), 0, GL_TRUE, 0, access, texture->GetInternalFormat());
 	GL_CHECK_ERROR;
-	m_images.emplace_back(std::move(texture));
+	m_images.emplace_back(texture);
 }
 
 bool Framebuffer::CheckStatus()

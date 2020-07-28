@@ -31,10 +31,12 @@ protected:
 class ViewContext
 {
 public:
-	const glm::mat4 GetViewMat() const { return m_view; }
+	glm::mat4 GetViewMat() const { return m_view; }
 	void SetViewMat(const glm::mat4& view) { m_view = view; }
-	const glm::mat4 GetProjMat() const { return m_proj; }
+	glm::mat4 GetProjMat() const { return m_proj; }
 	void SetProjMat(const glm::mat4& proj) { m_proj = proj; }
+	glm::vec3 GetCameraPosition()const { return m_camera_position; }
+	void SetCameraPosition(const glm::vec3& cameraPosition) { m_camera_position = cameraPosition; }
 	void ClearRenderContext() { m_rcs.clear(); }
 	void SetPolygonMode(GLenum polygon_mode) { m_polygon_mode = polygon_mode; }
 	void SetColorMask(const glm::bvec4 color_mask) { m_color_mask = color_mask; }
@@ -42,7 +44,7 @@ public:
 	void SetStencilStates(bool stencil_enable, GLenum stencil_func, GLenum stencil_fail_op,
 		GLenum depth_fail_op, GLenum pass_op, GLuint stencil_read_mask, GLuint stencil_write_mask,
 		GLint stencil_ref);
-	void SetCullFace(bool cull_face_enabled) { m_cull_face_enabled = cull_face_enabled; }
+	void SetCullFace(bool cull_face_enabled, GLenum cull_face_mode) { m_cull_face_enabled = cull_face_enabled;m_cull_face_mode = cull_face_mode; }
 	void SetBlend(bool blend_enabled) { m_blend_enabled = blend_enabled; }
 	const FramebufferPtr& GetFramebuffer() const { return m_fb; }
 	void SetFramebuffer(const FramebufferPtr& fb) { m_fb = fb; }
@@ -70,6 +72,7 @@ protected:
 	void ApplyFrameBuffer();
 	void ApplyRenderStates();
 
+	glm::vec3 m_camera_position;
 	glm::mat4 m_view;
 	glm::mat4 m_proj;
 	std::vector<RenderContext*> m_rcs;
@@ -92,7 +95,8 @@ protected:
 	GLuint m_stencil_write_mask = 0xFF;
 	GLint m_stencil_ref = 0;
 
-	bool m_cull_face_enabled = true;
+	bool m_cull_face_enabled = false;
+	GLenum m_cull_face_mode = GL_BACK;
 	bool m_blend_enabled = false;
 };
 

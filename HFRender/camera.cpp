@@ -32,6 +32,7 @@ void Camera::FillViewContext(ViewContext& vc)
 {
 	vc.SetViewMat(m_view_mat);
 	vc.SetProjMat(m_proj_mat);
+	vc.SetCameraPosition(m_position);
 }
 
 void Camera::UpdateViewMatrix()

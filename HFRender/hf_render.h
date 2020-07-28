@@ -22,8 +22,10 @@ public:
 	void Destroy();
 
 	bool Render();
-	void CreateWorld();
-	void Voxelization();
+	void InitVoxelize();
+	void Voxelize();
+	void InitRenderVoxel();
+	void RenderVoxel();
 
 private:
 	HFRender() {}
@@ -47,7 +49,11 @@ private:
 	GLFWwindow* m_window;
 	Camera m_camera;
 	World m_world;
-	ViewContext m_vc;
+
+	Texture3DPtr m_texture3D;
+	FramebufferPtr m_voxel_FBO;
+	FramebufferPtr m_front_FBO;
+	FramebufferPtr m_back_FBO;
 
 	static HFRender* s_inst;
 };

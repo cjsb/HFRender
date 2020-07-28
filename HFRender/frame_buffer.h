@@ -11,9 +11,9 @@ public:
 	~Framebuffer();
 	void AttachColorBuffer(RenderSurfacePtr&& color_surface);
 	void AttachDepthBuffer(RenderSurfacePtr&& depth_surface);
-	void AttachColorTexture2D(Texture2DPtr&& color_texture);
-	void AttachDepthTexture(Texture2DPtr&& depth_texture);
-	void AttachImage(ITexturePtr&& texture, GLenum access);
+	void AttachColorTexture(const Texture2DPtr& color_texture);
+	void AttachDepthTexture(const Texture2DPtr& depth_texture);
+	void AttachImage(const ITexturePtr& texture, GLenum access);
 	bool CheckStatus();
 	void Use();
 

@@ -1,6 +1,7 @@
 ﻿#include "hf_render.h"
 #include <ImGui/imgui_impl_glfw.h>
 #include <ImGui/imgui_impl_opengl3.h>
+#include "helpers.h"
 
 const char* glsl_version = "#version 450 core";
 HFRender* HFRender::s_inst = new HFRender();
@@ -188,7 +189,29 @@ bool HFRender::Render()
 {
 	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
 
-	m_world.CommitRenderContext(m_vc);
+	int voxelTextureSize = Config::Instance()->voxelTextureSize;
+	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, false);
+	m_texture3D->SetTextureUnit(0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindImageTexture(m_texture3D->GetTextureUnit(), m_texture3D->GetId(), 0, GL_TRUE, 0, GL_READ_WRITE, m_texture3D->GetInternalFormat());
+	GL_CHECK_ERROR;
+
+	ParamTable params = { {"albedo", glm::vec4(0.f, 1.f, 0.f, 1.f)} };
+	TextureParamTable texture_param = {
+		{"texture3D", m_texture3D}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/test_voxel.vert",
+		Config::Instance()->project_path + "shader/test_voxel.frag", "", std::move(params), std::move(texture_param));
+
+	Transform transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(1));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", transform.GetMatrix(), "bunny", material);
+
+	m_camera.SetPosition(glm::vec3(0, 0, 3));
+	m_camera.SetForward(glm::vec3(0, 0, -1));
+
+	ViewContext vc;
+	m_world.CommitRenderContext(vc);
 
 	while (!glfwWindowShouldClose(m_window))
 	{
@@ -201,8 +224,8 @@ bool HFRender::Render()
 		ImGui::NewFrame();
 
 		// render world
-		m_camera.FillViewContext(m_vc);
-		m_vc.FlushRenderContext(false);
+		m_camera.FillViewContext(vc);
+		vc.FlushRenderContext(false);
 
 		// render your GUI
 		RenderImGui();
@@ -214,43 +237,145 @@ bool HFRender::Render()
 		glfwSwapBuffers(m_window);
 	}
 
-	std::cout << static_cast<int>(Config::Instance()->render_mode) << std::endl;
+	std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize,1);
+	m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
+	dump_data(&data[0], 4, voxelTextureSize * voxelTextureSize * voxelTextureSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.txt");
 
 	return true;
 }
 
-void HFRender::Voxelization()
+void HFRender::Voxelize()
 {
-	uint32_t voxelTextureSize = 64;
-	Texture3DPtr texture = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, true);
-
-	MaterialPtr material;
-	ParamTable params = { {"texture3D", texture} };
-	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelization.vert",
-		Config::Instance()->project_path + "shader/voxelization.frag", 
-		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params));
-
-	FramebufferPtr defaultFBO = std::make_shared<Framebuffer>(true);
-	defaultFBO->AttachImage(std::move(texture), GL_WRITE_ONLY);
-
-	ViewContext vc;
-	vc.SetColorMask(glm::bvec4(false));
-	vc.SetDepthStates(false, false, GL_LESS);
-	vc.SetCullFace(false);
-	vc.SetBlend(false);
-	vc.SetFramebuffer(defaultFBO);
-
+	int voxelTextureSize = Config::Instance()->voxelTextureSize;
 	glViewport(0, 0, voxelTextureSize, voxelTextureSize);
 
+	Camera camera;
+	camera.SetForward(glm::vec3(0, 0, -1));
+	camera.SetProjMatrix(glm::ortho(-1, 1, -1, 1, -1, 1));
+
+	ViewContext voxel_vc;
+	voxel_vc.SetColorMask(glm::bvec4(false));
+	voxel_vc.SetDepthStates(false, false, GL_LESS);
+	voxel_vc.SetCullFace(false, GL_BACK);
+	voxel_vc.SetBlend(false);
+	voxel_vc.SetFramebuffer(m_voxel_FBO);
+
+	camera.FillViewContext(voxel_vc);
+	m_world.CommitRenderContext(voxel_vc, "bunny");
+	voxel_vc.FlushRenderContext(true);
+
+	m_texture3D->GenerateMipmap();
+
+	std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize);
+	m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
+	dump_data(&data[0], 4, voxelTextureSize * voxelTextureSize * voxelTextureSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.txt");
 }
 
-void HFRender::CreateWorld()
+void HFRender::InitVoxelize()
 {
-	m_camera.SetPosition(glm::vec3(0, 0.5, 3));
-	m_camera.SetForward(glm::vec3(0, 0, -1));
+	int voxelTextureSize = Config::Instance()->voxelTextureSize;
+	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, false);
+	m_texture3D->SetTextureUnit(0);
+	m_voxel_FBO = std::make_shared<Framebuffer>();
+	m_voxel_FBO->AttachImage(m_texture3D, GL_WRITE_ONLY);
+	m_voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(voxelTextureSize, voxelTextureSize, GL_RGB));
+	assert(m_voxel_FBO->CheckStatus());
 
-	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", glm::mat4(1), "bunny");
-	
+	ParamTable params = {
+		{"material.diffuseColor",glm::vec3(0.95, 1, 0.95)},
+		{"material.specularColor",glm::vec3(0.95, 1, 0.95)},
+		{"material.diffuseReflectivity",0.0f},
+		{"material.specularReflectivity",1.0f},
+		{"material.emissivity",0.0f},
+		{"material.transparency",0.0f},
+		{"pointLights[0].position",glm::vec3(0, 0.975, 0)},
+		{"pointLights[0].color",glm::vec3(0.5)},
+		{"numberOfLights",1}
+	};
+	TextureParamTable texture_param = {
+		{"texture3D", m_texture3D}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelization.vert",
+		Config::Instance()->project_path + "shader/voxelization.frag",
+		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params), std::move(texture_param));
+
+	Transform transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(1));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", transform.GetMatrix(), "bunny", material);
+}
+
+void HFRender::InitRenderVoxel()
+{
+	int width = Config::Instance()->width;
+	int height = Config::Instance()->height;
+
+	Texture2DPtr front_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
+	front_texture->SetTextureUnit(1);
+	m_front_FBO = std::make_shared<Framebuffer>();
+	m_front_FBO->AttachColorTexture(front_texture);
+	m_voxel_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
+	assert(m_voxel_FBO->CheckStatus());
+
+	Texture2DPtr back_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
+	back_texture->SetTextureUnit(2);
+	m_back_FBO = std::make_shared<Framebuffer>();
+	m_back_FBO->AttachColorTexture(back_texture);
+	m_voxel_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
+	assert(m_voxel_FBO->CheckStatus());
+
+	MaterialPtr worldPositionMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/world_position.vert",
+		Config::Instance()->project_path + "shader/Visualization/world_position.frag", "", {});
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/cube.obj", glm::mat4(1), "world_position", worldPositionMaterial);
+
+	ParamTable params = {
+		{"state", 0}
+	};
+	TextureParamTable texture_param = {
+		{"textureBack", back_texture},
+		{"textureFront", back_texture},
+		{"texture3D", m_texture3D}
+	};
+	MaterialPtr voxelVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/voxel_visualization.vert",
+		Config::Instance()->project_path + "shader/Visualization/voxel_visualization.frag", "", std::move(params), std::move(texture_param));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/quad.obj", glm::mat4(1), "voxel_visualization", voxelVisualizationMaterial);
+
+	m_camera.SetPosition(glm::vec3(0, 0, 2));
+	m_camera.SetForward(glm::vec3(0, 0, -1));
+}
+
+void HFRender::RenderVoxel()
+{
+	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
+
+	ViewContext cube_vc;
+	cube_vc.SetDepthStates(true, true, GL_LESS);
+	m_world.CommitRenderContext(cube_vc, "world_position");
+
+	ViewContext screen_vc;
+	m_world.CommitRenderContext(screen_vc, "voxel_visualization");
+
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
+		ProcessInput();
+
+		// Render Cube
+		m_camera.FillViewContext(cube_vc);
+		// Front.
+		cube_vc.SetFramebuffer(m_front_FBO);
+		cube_vc.SetCullFace(true, GL_BACK);
+		cube_vc.FlushRenderContext(false);
+
+		// Back.
+		cube_vc.SetFramebuffer(m_back_FBO);
+		cube_vc.SetCullFace(true, GL_FRONT);
+		cube_vc.FlushRenderContext(false);
+
+		// Render 3D texture to screen.
+		m_camera.FillViewContext(screen_vc);
+		screen_vc.FlushRenderContext(false);
+
+		glfwSwapBuffers(m_window);
+	}
 }
 
 int main()
@@ -259,6 +384,11 @@ int main()
 	HFRender* render = HFRender::Instance();
 	render->Init(1024, 780);
 
-	render->CreateWorld();
 	render->Render();
+
+	//render->InitVoxelize();
+	//render->Voxelize();
+
+	//render->InitRenderVoxel();
+	//render->RenderVoxel();
 }

@@ -35,6 +35,7 @@ class IEntity
 public:
 	virtual ~IEntity() {}
 	virtual void CommitRenderContext(ViewContext& view_context) = 0;
+	virtual void SetRenderEnable(bool enable) = 0;
 };
 typedef std::unique_ptr<IEntity> IEntityPtr;
 
@@ -43,17 +44,20 @@ class ModelEntity : public IEntity
 public:
 	ModelEntity(const std::string& path, const glm::mat4& transform, const MaterialPtr& material);
 	virtual void CommitRenderContext(ViewContext& view_context) override;
+	virtual void SetRenderEnable(bool enable) override;
+
 	void SetMaterial(const MaterialPtr& material);
 	const std::string& GetPath() const { return m_path; }
 	void SetModelData(const ModelDataPtr& model_data) { m_model_data = model_data; }
 	void ClearModelData();
-
+	
 protected:
 	glm::mat4 m_transform;
 	std::string m_path;
 	ModelDataPtr m_model_data;
 	RenderContext m_rc;
 	MaterialPtr m_material;
+	uint32_t m_flag = 0x00000001;
 };
 typedef std::unique_ptr<ModelEntity> ModelEntityPtr;
 

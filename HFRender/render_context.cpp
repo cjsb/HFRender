@@ -12,6 +12,7 @@ void RenderContext::Render(const ViewContext& view_context)
 	shader->SetMatrix4("view", view_context.GetViewMat());
 	shader->SetMatrix4("projection", view_context.GetProjMat());
 	shader->SetMatrix4("model", m_transform);
+	shader->SetVector3f("cameraPosition", view_context.GetCameraPosition());
 	m_material->Apply();
 	glBindVertexArray(m_vao);
 	GL_CHECK_ERROR;
@@ -83,6 +84,7 @@ void ViewContext::ApplyRenderStates()
 	if (m_cull_face_enabled)
 	{
 		glEnable(GL_CULL_FACE);
+		glCullFace(m_cull_face_mode);
 	}
 	else
 	{

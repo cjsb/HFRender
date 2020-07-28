@@ -6,10 +6,8 @@ RenderSurface::RenderSurface(uint32_t width, uint32_t height, GLenum sized_inter
 	m_sized_internal_format(sized_internal_format)
 {
 	glGenRenderbuffers(1, &m_id);
-	GL_CHECK_ERROR;
 
 	glBindRenderbuffer(GL_RENDERBUFFER, m_id);
-	GL_CHECK_ERROR;
 
 	glRenderbufferStorage(GL_RENDERBUFFER, sized_internal_format, width, height);
 	GL_CHECK_ERROR;

@@ -1,4 +1,5 @@
 #include "texture.h"
+#include <vector>
 
 Texture2D::Texture2D(uint32_t width, uint32_t height, void* data, GLuint data_type, bool generateMipmaps):m_width(width), m_height(height)
 {
@@ -38,7 +39,15 @@ Texture2D::~Texture2D()
     }
 }
 
-Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data, GLuint data_type, bool generateMipmaps) :m_width(width), m_height(height), m_depth(depth)
+
+void Texture2D::GenerateMipmap()
+{
+    glBindTexture(GL_TEXTURE_2D, m_id);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    GL_CHECK_ERROR;
+}
+
+Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data, GLenum data_type, bool generateMipmaps) :m_width(width), m_height(height), m_depth(depth)
 {
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_3D, m_id);
@@ -55,13 +64,18 @@ Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     // Upload texture buffer.
-    const int levels = 7;
+    /*const int levels = 7;
+    glTexStorage3D(GL_TEXTURE_3D, levels, GL_RGBA8, width, height, depth);
+    GL_CHECK_ERROR;*/
+
     m_internal_format = GL_RGBA8;
-    glTexStorage3D(GL_TEXTURE_3D, levels, m_internal_format, width, height, depth);
-    glTexImage3D(GL_TEXTURE_3D, 0, m_internal_format, width, height, depth, 0, GL_RGBA, data_type, data);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, width, height, depth, 0, GL_RGBA, data_type, data);
+    GL_CHECK_ERROR;
+
     if (generateMipmaps)
     {
         glGenerateMipmap(GL_TEXTURE_3D);
+        GL_CHECK_ERROR;
     }
     glBindTexture(GL_TEXTURE_3D, 0);
 }
@@ -74,4 +88,18 @@ Texture3D::~Texture3D()
         GL_CHECK_ERROR;
         m_id = 0;
     }
+}
+
+void Texture3D::GenerateMipmap()
+{
+    glBindTexture(GL_TEXTURE_3D, m_id);
+    glGenerateMipmap(GL_TEXTURE_3D);
+    GL_CHECK_ERROR;
+}
+
+void Texture3D::ReadTextureData(void* data, GLenum data_type)
+{
+    Activate();
+    glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, data_type, data);
+    GL_CHECK_ERROR;
 }

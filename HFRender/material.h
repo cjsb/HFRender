@@ -6,6 +6,7 @@
 #include "shader.h"
 
 typedef std::unordered_map<std::string, std::any> ParamTable;
+typedef std::unordered_map<std::string, ITexturePtr> TextureParamTable;
 
 class Material
 {
@@ -15,6 +16,11 @@ public:
 		m_shader(std::move(shader)),
 		m_params(std::move(params))
 	{}
+	Material(ShaderPtr&& shader, ParamTable&& params, TextureParamTable&& texture_param) :
+		m_shader(std::move(shader)),
+		m_params(std::move(params)),
+		m_texture_param(std::move(texture_param))
+	{}
 	void SetShader(const ShaderPtr& shader) { m_shader = shader; }
 	const ShaderPtr& GetShader() const { return m_shader; }
 	void SetParam(const std::string& name, std::any value) { m_params[name] = value; }
@@ -22,8 +28,11 @@ public:
 
 	static std::shared_ptr<Material> GetDefaultMaterial();
 	static std::shared_ptr<Material> CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path, ParamTable&& params);
+	static std::shared_ptr<Material> CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path, 
+		ParamTable&& params, TextureParamTable&& texture_param);
 protected:
 	ShaderPtr m_shader;
 	ParamTable m_params;
+	TextureParamTable m_texture_param;
 };
 typedef std::shared_ptr<Material> MaterialPtr;

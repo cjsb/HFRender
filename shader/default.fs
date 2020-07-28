@@ -1,8 +1,5 @@
-#version 330 core
+#version 450 core
 out vec4 FragColor;
-
-in vec3 worldPos;
-in vec3 normal;
 
 uniform vec4 albedo;
 

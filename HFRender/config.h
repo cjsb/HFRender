@@ -24,6 +24,7 @@ public:
 	int width;
 	int height;
 	std::string project_path;
+	int voxelTextureSize = 64;
 
 private:
 	Config() {}
