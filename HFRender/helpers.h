@@ -7,6 +7,8 @@ std::vector<std::string> Split(const std::string& s, const std::string& t);
 
 void dump_data(float* data, uint32_t stride, uint32_t count, const std::string& path);
 
+void dump_3D_data(float* data, uint32_t stride, uint32_t width, uint32_t height, uint32_t depth, const std::string& path);
+
 class Transform
 {
 public:

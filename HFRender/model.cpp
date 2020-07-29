@@ -10,7 +10,7 @@ ModelData::ModelData(const std::vector<Vertex>& vertices, const std::vector<uint
 	m_vb = std::make_shared<VertexBuffer>(VertexBuffer::BufferType::VERTEX, vertices.data(), vertices.size() * sizeof(Vertex));
 	m_ib = std::make_shared<VertexBuffer>(VertexBuffer::BufferType::INDEX, indices.data(), indices.size() * sizeof(uint32_t));
 	m_stride = sizeof(Vertex);
-	m_prim_count = (uint32_t)indices.size();
+    m_prim_count = (uint32_t)(indices.size() / 3);
 }
 
 ModelData::~ModelData()

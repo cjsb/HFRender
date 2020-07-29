@@ -4,7 +4,7 @@ out vec4 FragColor;
 in vec3 worldPosition;
 
 uniform vec4 albedo;
-layout(RGBA8) uniform image3D texture3D;
+layout(rgba8) uniform image3D texture3D;
 
 vec3 scaleAndBias(vec3 p) { return 0.5f * p + vec3(0.5f); }
 

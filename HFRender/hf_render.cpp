@@ -96,7 +96,7 @@ bool HFRender::InitGlfw()
 
 	// 配置GLFW
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);  // 指定OpenGL主版本号
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);  // 指定OpenGL次版本号
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);  // 指定OpenGL次版本号
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 指定核心模式
 	return true;
 }
@@ -190,7 +190,8 @@ bool HFRender::Render()
 	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
 
 	int voxelTextureSize = Config::Instance()->voxelTextureSize;
-	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, false);
+	std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize, 0);
+	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, &data[0], GL_FLOAT, false);
 	m_texture3D->SetTextureUnit(0);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -237,10 +238,6 @@ bool HFRender::Render()
 		glfwSwapBuffers(m_window);
 	}
 
-	std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize,1);
-	m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
-	dump_data(&data[0], 4, voxelTextureSize * voxelTextureSize * voxelTextureSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.txt");
-
 	return true;
 }
 
@@ -266,15 +263,15 @@ void HFRender::Voxelize()
 
 	m_texture3D->GenerateMipmap();
 
-	std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize);
-	m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
-	dump_data(&data[0], 4, voxelTextureSize * voxelTextureSize * voxelTextureSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.txt");
+	//std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize);
+	//m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
+	//dump_3D_data(&data[0], 4, voxelTextureSize, voxelTextureSize, voxelTextureSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.xyz");
 }
 
 void HFRender::InitVoxelize()
 {
 	int voxelTextureSize = Config::Instance()->voxelTextureSize;
-	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, false);
+	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, true);
 	m_texture3D->SetTextureUnit(0);
 	m_voxel_FBO = std::make_shared<Framebuffer>();
 	m_voxel_FBO->AttachImage(m_texture3D, GL_WRITE_ONLY);
@@ -312,15 +309,15 @@ void HFRender::InitRenderVoxel()
 	front_texture->SetTextureUnit(1);
 	m_front_FBO = std::make_shared<Framebuffer>();
 	m_front_FBO->AttachColorTexture(front_texture);
-	m_voxel_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
-	assert(m_voxel_FBO->CheckStatus());
+	m_front_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
+	assert(m_front_FBO->CheckStatus());
 
 	Texture2DPtr back_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
 	back_texture->SetTextureUnit(2);
 	m_back_FBO = std::make_shared<Framebuffer>();
 	m_back_FBO->AttachColorTexture(back_texture);
-	m_voxel_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
-	assert(m_voxel_FBO->CheckStatus());
+	m_back_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
+	assert(m_back_FBO->CheckStatus());
 
 	MaterialPtr worldPositionMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/world_position.vert",
 		Config::Instance()->project_path + "shader/Visualization/world_position.frag", "", {});
@@ -331,7 +328,7 @@ void HFRender::InitRenderVoxel()
 	};
 	TextureParamTable texture_param = {
 		{"textureBack", back_texture},
-		{"textureFront", back_texture},
+		{"textureFront", front_texture},
 		{"texture3D", m_texture3D}
 	};
 	MaterialPtr voxelVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/voxel_visualization.vert",
@@ -384,11 +381,11 @@ int main()
 	HFRender* render = HFRender::Instance();
 	render->Init(1024, 780);
 
-	render->Render();
+	//render->Render();
 
-	//render->InitVoxelize();
-	//render->Voxelize();
+	render->InitVoxelize();
+	render->Voxelize();
 
-	//render->InitRenderVoxel();
-	//render->RenderVoxel();
+	render->InitRenderVoxel();
+	render->RenderVoxel();
 }

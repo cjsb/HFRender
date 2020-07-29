@@ -25,16 +25,15 @@ void main() {
 	const float mipmapLevel = state;
 
 	// Initialize ray.
-	const vec3 origin = isInsideCube(cameraPosition, 0.2f) ? 
-		cameraPosition : texture(textureFront, textureCoordinateFrag).xyz;
-	vec3 direction = texture(textureBack, textureCoordinateFrag).xyz - origin;
-	const uint numberOfSteps = uint(INV_STEP_LENGTH * length(direction));
-	direction = normalize(direction);
+	vec3 origin = texture(textureFront, textureCoordinateFrag).xyz;
+	vec3 direction = normalize(texture(textureBack, textureCoordinateFrag).xyz-cameraPosition);
+	float len = length(texture(textureBack, textureCoordinateFrag).xyz-origin);
+	const uint numberOfSteps = uint(INV_STEP_LENGTH * len);
 
 	// Trace.
 	color = vec4(0.0f);
-	for(uint step = 0; step < numberOfSteps && color.a < 0.99f; ++step) {
-		const vec3 currentPoint = origin + STEP_LENGTH * step * direction;
+	for(uint step = 0;  step < numberOfSteps && color.a < 0.99f; ++step) {
+		vec3 currentPoint = origin + STEP_LENGTH * step * direction;
 		vec3 coordinate = scaleAndBias(currentPoint);
 		vec4 currentSample = textureLod(texture3D, coordinate, mipmapLevel);
 		color += (1.0f - color.a) * currentSample;

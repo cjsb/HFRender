@@ -54,19 +54,14 @@ Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data
     GL_CHECK_ERROR;
 
     // Parameter options.
-    const auto wrap = GL_CLAMP_TO_BORDER;
+    GLenum wrap = GL_CLAMP_TO_BORDER;
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, wrap);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, wrap);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, wrap);
 
-    const auto filter = GL_LINEAR_MIPMAP_LINEAR;
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, filter);
+    //这里要根据是否生产MipMap来改变GL_TEXTURE_MIN_FILTER的值
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, generateMipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-    // Upload texture buffer.
-    /*const int levels = 7;
-    glTexStorage3D(GL_TEXTURE_3D, levels, GL_RGBA8, width, height, depth);
-    GL_CHECK_ERROR;*/
 
     m_internal_format = GL_RGBA8;
     glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, width, height, depth, 0, GL_RGBA, data_type, data);
@@ -92,7 +87,7 @@ Texture3D::~Texture3D()
 
 void Texture3D::GenerateMipmap()
 {
-    glBindTexture(GL_TEXTURE_3D, m_id);
+    Activate();
     glGenerateMipmap(GL_TEXTURE_3D);
     GL_CHECK_ERROR;
 }

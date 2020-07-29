@@ -17,7 +17,7 @@ void RenderContext::Render(const ViewContext& view_context)
 	glBindVertexArray(m_vao);
 	GL_CHECK_ERROR;
 
-	glDrawElements(GL_TRIANGLES, m_prim_count * 3, GL_UNSIGNED_SHORT, m_index_offset);
+	glDrawElements(GL_TRIANGLES, m_prim_count * 3, GL_UNSIGNED_INT, m_index_offset);
 	GL_CHECK_ERROR;
 
 	glBindVertexArray(0);
