@@ -33,7 +33,7 @@ protected:
 
 	std::vector<ITexturePtr> m_images;
 
-	glm::vec4 m_clear_color = glm::vec4(0.f, 0.f, 0.f, 1.f);
+	glm::vec4 m_clear_color = glm::vec4(0.f, 0.f, 0.f, 0.f);
 	float m_clear_depth = 1.f;
 	uint8_t m_clear_stencil = 0;
 };

@@ -24,6 +24,7 @@ private:
 	VertexBufferPtr m_ib;
 	GLuint m_vao = 0;
 	uint32_t m_stride = 0;
+	uint32_t m_point_count = 0;
 	uint32_t m_prim_count = 0;
 	size_t m_index_offset = 0;
 	bool m_graphic_resources_inited = false;
@@ -50,7 +51,6 @@ public:
 	const std::string& GetPath() const { return m_path; }
 	void SetModelData(const ModelDataPtr& model_data) { m_model_data = model_data; }
 	void ClearModelData();
-	
 protected:
 	glm::mat4 m_transform;
 	std::string m_path;
@@ -60,6 +60,25 @@ protected:
 	uint32_t m_flag = 0x00000001;
 };
 typedef std::unique_ptr<ModelEntity> ModelEntityPtr;
+
+class Volume :public IEntity
+{
+public:
+	Volume(glm::vec3 start, float stride, uint32_t width, uint32_t height, uint32_t depth, const MaterialPtr& material);
+	virtual void CommitRenderContext(ViewContext& view_context) override;
+	virtual void SetRenderEnable(bool enable) override;
+private:
+	glm::vec3 m_start;
+	float m_stride;
+	uint32_t m_width;
+	uint32_t m_height;
+	uint32_t m_depth;
+	ModelDataPtr m_model_data;
+	RenderContext m_rc;
+	MaterialPtr m_material;
+	uint32_t m_flag = 0x00000001;
+};
+typedef std::unique_ptr<Volume> VolumePtr;
 
 class ModelLoader
 {
@@ -82,3 +101,4 @@ protected:
 
 	static ModelLoader* s_inst;
 };
+

@@ -26,7 +26,7 @@ void main() {
 
 	// Initialize ray.
 	vec3 origin = texture(textureFront, textureCoordinateFrag).xyz;
-	vec3 direction = normalize(texture(textureBack, textureCoordinateFrag).xyz-cameraPosition);
+	vec3 direction = normalize(origin-cameraPosition);
 	float len = length(texture(textureBack, textureCoordinateFrag).xyz-origin);
 	const uint numberOfSteps = uint(INV_STEP_LENGTH * len);
 

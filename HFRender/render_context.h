@@ -18,14 +18,18 @@ public:
 	}
 	void SetTransform(const glm::mat4& transform) { m_transform = transform; }
 	void SetMaterial(const MaterialPtr& material) { m_material = material; }
+	void SetPointCount(uint32_t point_count) { m_point_count = point_count; }
 	void SetPrimCount(uint32_t prim_count) { m_prim_count = prim_count; }
 	void SetIndexOffset(void* offset) { m_index_offset = offset; }
+	void SetRenderMode(GLenum render_mode) { m_render_mode = render_mode; }
 protected:
 	GLuint m_vao = 0;
 	glm::mat4 m_transform = glm::mat4(1.f);
 	MaterialPtr m_material;
+	GLuint m_point_count;
 	GLuint m_prim_count;
 	GLvoid* m_index_offset = 0;
+	GLenum m_render_mode = GL_TRIANGLES;
 };
 
 class ViewContext

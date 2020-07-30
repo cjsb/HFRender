@@ -10,7 +10,8 @@ ModelData::ModelData(const std::vector<Vertex>& vertices, const std::vector<uint
 	m_vb = std::make_shared<VertexBuffer>(VertexBuffer::BufferType::VERTEX, vertices.data(), vertices.size() * sizeof(Vertex));
 	m_ib = std::make_shared<VertexBuffer>(VertexBuffer::BufferType::INDEX, indices.data(), indices.size() * sizeof(uint32_t));
 	m_stride = sizeof(Vertex);
-    m_prim_count = (uint32_t)(indices.size() / 3);
+    m_prim_count = indices.size() / 3;
+    m_point_count = vertices.size();
 }
 
 ModelData::~ModelData()
@@ -31,6 +32,7 @@ void ModelData::FillRenderContext(RenderContext* const render_context)
 		m_graphic_resources_inited = true;
 	}
 
+    render_context->SetPointCount(m_point_count);
 	render_context->SetPrimCount(m_prim_count);
 	render_context->SetIndexOffset((void*)m_index_offset);
 	render_context->SetVao(m_vao);
@@ -105,6 +107,50 @@ void ModelEntity::ClearModelData()
 }
 
 void ModelEntity::SetRenderEnable(bool enable)
+{
+    if (enable)
+    {
+        m_flag |= 0x00000001;
+    }
+    else
+    {
+        m_flag &= (~0x00000001);
+    }
+}
+
+Volume::Volume(glm::vec3 start, float stride, uint32_t width, uint32_t height, uint32_t depth, const MaterialPtr& material)
+    :m_start(start), m_stride(stride), m_width(width), m_height(height), m_depth(depth), m_material(material)
+{
+    std::vector<Vertex> vertices;
+    for (uint32_t x = 0;x < width;x++)
+    {
+        for (uint32_t y = 0;y < height;y++)
+        {
+            for (uint32_t z = 0;z < depth;z++)
+            {
+                Vertex vertex;
+                vertex.position = start + glm::vec3(x * stride, y * stride, z * stride);
+                vertices.emplace_back(vertex);
+            }
+        }
+    }
+
+    m_rc.SetTransform(glm::mat4(1));
+    m_rc.SetMaterial(material);
+    m_rc.SetRenderMode(GL_POINTS);
+    m_model_data = std::make_shared<ModelData>(vertices, std::vector<uint32_t>());
+    m_model_data->FillRenderContext(&m_rc);
+}
+
+void Volume::CommitRenderContext(ViewContext& view_context)
+{
+    if (m_model_data && (m_flag & 0x00000001))
+    {
+        view_context.AddRenderContext(&m_rc);
+    }
+}
+
+void Volume::SetRenderEnable(bool enable)
 {
     if (enable)
     {

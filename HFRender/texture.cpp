@@ -54,6 +54,9 @@ Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data
     GL_CHECK_ERROR;
 
     // Parameter options.
+    float borderColor[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
     GLenum wrap = GL_CLAMP_TO_BORDER;
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, wrap);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, wrap);

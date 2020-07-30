@@ -1,9 +1,8 @@
 #version 450 core
 out vec4 FragColor;
 
-uniform vec4 albedo;
+in vec3 worldPosition;
 
-void main()
-{
-    FragColor = albedo;
-}
+out vec4 color;
+
+void main(){ color.rgb = worldPosition; }

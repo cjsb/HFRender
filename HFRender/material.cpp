@@ -83,3 +83,79 @@ std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, c
 
 	return std::make_shared<Material>(std::move(shader), std::move(params), std::move(texture_param));
 }
+
+std::shared_ptr<Material> Material::GetVCTDiffuse(const Texture3DPtr& texture3D, glm::vec3 color)
+{
+	ParamTable params = {
+		{"material.diffuseColor",color},
+		{"material.specularColor",color},
+		{"material.diffuseReflectivity",1.f},
+		{"material.specularReflectivity",0.f},
+		{"material.specularDiffusion",0.f},
+		{"material.emissivity",0.0f},
+		{"material.transparency",0.0f},
+		{"material.refractiveIndex",1.0f},
+		{"settings.indirectSpecularLight", false},
+		{"settings.indirectDiffuseLight", true},
+		{"settings.directLight", true},
+		{"settings.shadows", true},
+		{"pointLights[0].position",glm::vec3(0, 0.9, 0)},
+		{"pointLights[0].color",glm::vec3(1)},
+		{"numberOfLights",1}
+	};
+	TextureParamTable texture_param = {
+		{"texture3D", texture3D}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxel_cone_tracing.vert",
+		Config::Instance()->project_path + "shader/voxel_cone_tracing.frag", "", std::move(params), std::move(texture_param));
+	return material;
+}
+
+std::shared_ptr<Material> Material::GetVCTSpecular(const Texture3DPtr& texture3D, glm::vec3 color)
+{
+	ParamTable params = {
+		{"material.diffuseColor",color},
+		{"material.specularColor",color},
+		{"material.diffuseReflectivity",0.f},
+		{"material.specularReflectivity",1.f},
+		{"material.specularDiffusion",0.5f},
+		{"material.emissivity",0.0f},
+		{"material.transparency",0.0f},
+		{"material.refractiveIndex",1.0f},
+		{"settings.indirectSpecularLight", true},
+		{"settings.indirectDiffuseLight", false},
+		{"settings.directLight", true},
+		{"settings.shadows", true},
+		{"pointLights[0].position",glm::vec3(0, 0.9, 0)},
+		{"pointLights[0].color",glm::vec3(1)},
+		{"numberOfLights",1}
+	};
+	TextureParamTable texture_param = {
+		{"texture3D", texture3D}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxel_cone_tracing.vert",
+		Config::Instance()->project_path + "shader/voxel_cone_tracing.frag", "", std::move(params), std::move(texture_param));
+	return material;
+}
+
+std::shared_ptr<Material> Material::GetVoxelMaterial(const Texture3DPtr& texture3D, glm::vec3 color)
+{
+	ParamTable params = {
+		{"material.diffuseColor",color},
+		{"material.specularColor",color},
+		{"material.diffuseReflectivity", 0.5f},
+		{"material.specularReflectivity",0.5f},
+		{"material.emissivity",0.0f},
+		{"material.transparency",0.0f},
+		{"pointLights[0].position",glm::vec3(0, 0.9, 0)},
+		{"pointLights[0].color",glm::vec3(1)},
+		{"numberOfLights",1}
+	};
+	TextureParamTable texture_param = {
+		{"texture3D", texture3D}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelization.vert",
+		Config::Instance()->project_path + "shader/voxelization.frag",
+		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params), std::move(texture_param));
+	return material;
+}

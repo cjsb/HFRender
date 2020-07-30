@@ -29,6 +29,11 @@ void World::AddModelEntity(const std::string& path, const glm::mat4& transform, 
 	m_entities.emplace(name, std::move(model_entity));
 }
 
+void World::AddEntity(const std::string& name, IEntityPtr&& entity)
+{
+	m_entities.emplace(name, std::move(entity));
+}
+
 void World::SetModelRenderEnable(const std::string& name, bool enable)
 {
 	auto it = m_entities.find(name);

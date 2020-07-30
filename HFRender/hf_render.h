@@ -26,7 +26,7 @@ public:
 	void Voxelize();
 	void InitRenderVoxel();
 	void RenderVoxel();
-
+	void VoxelConeTrace();
 private:
 	HFRender() {}
 	bool InitGlfw();
@@ -49,6 +49,7 @@ private:
 	GLFWwindow* m_window;
 	Camera m_camera;
 	World m_world;
+	World m_voxel_world;
 
 	Texture3DPtr m_texture3D;
 	FramebufferPtr m_voxel_FBO;

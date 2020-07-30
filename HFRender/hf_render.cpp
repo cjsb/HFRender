@@ -189,29 +189,13 @@ bool HFRender::Render()
 {
 	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
 
-	int voxelTextureSize = Config::Instance()->voxelTextureSize;
-	std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize, 0);
-	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, &data[0], GL_FLOAT, false);
-	m_texture3D->SetTextureUnit(0);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glBindImageTexture(m_texture3D->GetTextureUnit(), m_texture3D->GetId(), 0, GL_TRUE, 0, GL_READ_WRITE, m_texture3D->GetInternalFormat());
-	GL_CHECK_ERROR;
-
-	ParamTable params = { {"albedo", glm::vec4(0.f, 1.f, 0.f, 1.f)} };
-	TextureParamTable texture_param = {
-		{"texture3D", m_texture3D}
-	};
-	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/test_voxel.vert",
-		Config::Instance()->project_path + "shader/test_voxel.frag", "", std::move(params), std::move(texture_param));
-
-	Transform transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(1));
-	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", transform.GetMatrix(), "bunny", material);
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/cornell.obj", glm::mat4(1), "cornell", Material::GetDefaultMaterial());
 
 	m_camera.SetPosition(glm::vec3(0, 0, 3));
 	m_camera.SetForward(glm::vec3(0, 0, -1));
 
 	ViewContext vc;
+	//vc.SetCullFace(true, GL_BACK);
 	m_world.CommitRenderContext(vc);
 
 	while (!glfwWindowShouldClose(m_window))
@@ -258,7 +242,7 @@ void HFRender::Voxelize()
 	voxel_vc.SetFramebuffer(m_voxel_FBO);
 
 	camera.FillViewContext(voxel_vc);
-	m_world.CommitRenderContext(voxel_vc, "bunny");
+	m_voxel_world.CommitRenderContext(voxel_vc);
 	voxel_vc.FlushRenderContext(true);
 
 	m_texture3D->GenerateMipmap();
@@ -278,34 +262,29 @@ void HFRender::InitVoxelize()
 	m_voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(voxelTextureSize, voxelTextureSize, GL_RGB));
 	assert(m_voxel_FBO->CheckStatus());
 
-	ParamTable params = {
-		{"material.diffuseColor",glm::vec3(0.95, 1, 0.95)},
-		{"material.specularColor",glm::vec3(0.95, 1, 0.95)},
-		{"material.diffuseReflectivity",0.0f},
-		{"material.specularReflectivity",1.0f},
-		{"material.emissivity",0.0f},
-		{"material.transparency",0.0f},
-		{"pointLights[0].position",glm::vec3(0, 0.975, 0)},
-		{"pointLights[0].color",glm::vec3(0.5)},
-		{"numberOfLights",1}
-	};
-	TextureParamTable texture_param = {
-		{"texture3D", m_texture3D}
-	};
-	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelization.vert",
-		Config::Instance()->project_path + "shader/voxelization.frag",
-		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params), std::move(texture_param));
+	MaterialPtr bunny_material = Material::GetVoxelMaterial(m_texture3D, glm::vec3(1, 1, 1));
+	Transform bunny_transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(0.5));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", bunny_transform.GetMatrix(), "bunny", bunny_material);
 
-	Transform transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(1));
-	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", transform.GetMatrix(), "bunny", material);
+	Transform cornell_trans(glm::vec3(0), glm::mat4(1), glm::vec3(0.99));
+
+	MaterialPtr cornell_left_material = Material::GetVoxelMaterial(m_texture3D, glm::vec3(1, 0, 0));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/left_wall.obj", cornell_trans.GetMatrix(), "left_wall", cornell_left_material);
+
+	MaterialPtr cornell_right_material = Material::GetVoxelMaterial(m_texture3D, glm::vec3(0, 0, 1));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/right_wall.obj", cornell_trans.GetMatrix(), "right_wall", cornell_right_material);
+
+	MaterialPtr cornell_other_material = Material::GetVoxelMaterial(m_texture3D, glm::vec3(1, 1, 1));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/floor_roof.obj", cornell_trans.GetMatrix(), "floor_roof", cornell_other_material);
 }
 
 void HFRender::InitRenderVoxel()
 {
+	int voxelTextureSize = Config::Instance()->voxelTextureSize;
 	int width = Config::Instance()->width;
 	int height = Config::Instance()->height;
 
-	Texture2DPtr front_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
+	/*Texture2DPtr front_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
 	front_texture->SetTextureUnit(1);
 	m_front_FBO = std::make_shared<Framebuffer>();
 	m_front_FBO->AttachColorTexture(front_texture);
@@ -333,7 +312,20 @@ void HFRender::InitRenderVoxel()
 	};
 	MaterialPtr voxelVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/voxel_visualization.vert",
 		Config::Instance()->project_path + "shader/Visualization/voxel_visualization.frag", "", std::move(params), std::move(texture_param));
-	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/quad.obj", glm::mat4(1), "voxel_visualization", voxelVisualizationMaterial);
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/quad.obj", glm::mat4(1), "voxel_visualization", voxelVisualizationMaterial);*/
+
+	ParamTable params2 = {
+		{"pointSize", float(height) / float(voxelTextureSize)}
+	};
+
+	TextureParamTable texture_param2 = {
+		{"texture3D", m_texture3D}
+	};
+	MaterialPtr volumeVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/volume_visualization.vert",
+		Config::Instance()->project_path + "shader/Visualization/volume_visualization.frag", "", std::move(params2), std::move(texture_param2));
+
+	VolumePtr volume = std::make_unique<Volume>(glm::vec3(-1), 2.0f / voxelTextureSize, voxelTextureSize, voxelTextureSize, voxelTextureSize, volumeVisualizationMaterial);
+	m_world.AddEntity("volume_visualization", std::move(volume));
 
 	m_camera.SetPosition(glm::vec3(0, 0, 2));
 	m_camera.SetForward(glm::vec3(0, 0, -1));
@@ -343,33 +335,90 @@ void HFRender::RenderVoxel()
 {
 	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
 
-	ViewContext cube_vc;
-	cube_vc.SetDepthStates(true, true, GL_LESS);
-	m_world.CommitRenderContext(cube_vc, "world_position");
+	//ViewContext cube_vc;
+	//cube_vc.SetDepthStates(true, true, GL_LESS);
+	//m_world.CommitRenderContext(cube_vc, "world_position");
 
-	ViewContext screen_vc;
-	m_world.CommitRenderContext(screen_vc, "voxel_visualization");
+	//ViewContext screen_vc;
+	//m_world.CommitRenderContext(screen_vc, "voxel_visualization");
 
+	//while (!glfwWindowShouldClose(m_window))
+	//{
+	//	glfwPollEvents();
+	//	ProcessInput();
+
+	//	// Render Cube
+	//	m_camera.FillViewContext(cube_vc);
+	//	// Front.
+	//	cube_vc.SetFramebuffer(m_front_FBO);
+	//	cube_vc.SetCullFace(true, GL_BACK);
+	//	cube_vc.FlushRenderContext(false);
+
+	//	// Back.
+	//	cube_vc.SetFramebuffer(m_back_FBO);
+	//	cube_vc.SetCullFace(true, GL_FRONT);
+	//	cube_vc.FlushRenderContext(false);
+
+	//	// Render 3D texture to screen.
+	//	m_camera.FillViewContext(screen_vc);
+	//	screen_vc.FlushRenderContext(false);
+
+	//	glfwSwapBuffers(m_window);
+	//}
+
+	ViewContext volume_vc;
+	volume_vc.SetDepthStates(true, true, GL_LESS);
+	m_world.CommitRenderContext(volume_vc, "volume_visualization");
+
+	glEnable(GL_PROGRAM_POINT_SIZE);
 	while (!glfwWindowShouldClose(m_window))
 	{
 		glfwPollEvents();
 		ProcessInput();
 
-		// Render Cube
-		m_camera.FillViewContext(cube_vc);
-		// Front.
-		cube_vc.SetFramebuffer(m_front_FBO);
-		cube_vc.SetCullFace(true, GL_BACK);
-		cube_vc.FlushRenderContext(false);
+		m_camera.FillViewContext(volume_vc);
+		volume_vc.FlushRenderContext(false);
 
-		// Back.
-		cube_vc.SetFramebuffer(m_back_FBO);
-		cube_vc.SetCullFace(true, GL_FRONT);
-		cube_vc.FlushRenderContext(false);
+		glfwSwapBuffers(m_window);
+	}
+}
 
-		// Render 3D texture to screen.
-		m_camera.FillViewContext(screen_vc);
-		screen_vc.FlushRenderContext(false);
+void HFRender::VoxelConeTrace()
+{
+	int voxelTextureSize = Config::Instance()->voxelTextureSize;
+	int width = Config::Instance()->width;
+	int height = Config::Instance()->height;
+
+	MaterialPtr bunny_material = Material::GetVCTSpecular(m_texture3D, glm::vec3(1, 1, 1));
+	Transform transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(0.5));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", transform.GetMatrix(), "bunny", bunny_material);
+
+	Transform cornell_trans(glm::vec3(0), glm::mat4(1), glm::vec3(0.99));
+
+	MaterialPtr cornell_left_material = Material::GetVCTDiffuse(m_texture3D, glm::vec3(1, 0, 0));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/left_wall.obj", cornell_trans.GetMatrix(), "left_wall", cornell_left_material);
+
+	MaterialPtr cornell_right_material = Material::GetVCTDiffuse(m_texture3D, glm::vec3(0, 0, 1));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/right_wall.obj", cornell_trans.GetMatrix(), "right_wall", cornell_right_material);
+
+	MaterialPtr cornell_other_material = Material::GetVCTDiffuse(m_texture3D, glm::vec3(1, 1, 1));
+	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/floor_roof.obj", cornell_trans.GetMatrix(), "floor_roof", cornell_other_material);
+
+	ViewContext vc;
+	vc.SetDepthStates(true, true, GL_LESS);
+	m_world.CommitRenderContext(vc);
+
+	m_camera.SetPosition(glm::vec3(0, 0, 3));
+	m_camera.SetForward(glm::vec3(0, 0, -1));
+
+	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
+		ProcessInput();
+
+		m_camera.FillViewContext(vc);
+		vc.FlushRenderContext(false);
 
 		glfwSwapBuffers(m_window);
 	}
@@ -378,6 +427,7 @@ void HFRender::RenderVoxel()
 int main()
 {
 	Config::Instance()->project_path = "C:/Users/wanglingye/wly/project/HFRender/";
+	Config::Instance()->voxelTextureSize = 128;
 	HFRender* render = HFRender::Instance();
 	render->Init(1024, 780);
 
@@ -386,6 +436,8 @@ int main()
 	render->InitVoxelize();
 	render->Voxelize();
 
-	render->InitRenderVoxel();
-	render->RenderVoxel();
+	//render->InitRenderVoxel();
+	//render->RenderVoxel();
+
+	render->VoxelConeTrace();
 }

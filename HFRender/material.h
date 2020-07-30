@@ -27,6 +27,10 @@ public:
 	void Apply();
 
 	static std::shared_ptr<Material> GetDefaultMaterial();
+	static std::shared_ptr<Material> GetVCTDiffuse(const Texture3DPtr& texture3D, glm::vec3 color);
+	static std::shared_ptr<Material> GetVCTSpecular(const Texture3DPtr& texture3D, glm::vec3 color);
+	static std::shared_ptr<Material> GetVoxelMaterial(const Texture3DPtr& texture3D, glm::vec3 color);
+
 	static std::shared_ptr<Material> CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path, ParamTable&& params);
 	static std::shared_ptr<Material> CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path, 
 		ParamTable&& params, TextureParamTable&& texture_param);
