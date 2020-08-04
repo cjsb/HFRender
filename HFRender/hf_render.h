@@ -4,6 +4,7 @@
 #include "camera.h"
 #include "world.h"
 #include "config.h"
+#include "automic_buffer.h"
 
 const float DEFAULT_CAMERA_MOVE_SPEED = 1.f;
 const float DEFAULT_MOUSE_SENSITIVITY = 0.001f;
@@ -22,11 +23,10 @@ public:
 	void Destroy();
 
 	bool Render();
-	void InitVoxelize();
 	void Voxelize();
-	void InitRenderVoxel();
 	void RenderVoxel();
 	void VoxelConeTrace();
+	void BuildVoxelList();
 private:
 	HFRender() {}
 	bool InitGlfw();
@@ -52,9 +52,6 @@ private:
 	World m_voxel_world;
 
 	Texture3DPtr m_texture3D;
-	FramebufferPtr m_voxel_FBO;
-	FramebufferPtr m_front_FBO;
-	FramebufferPtr m_back_FBO;
 
 	static HFRender* s_inst;
 };

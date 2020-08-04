@@ -227,40 +227,12 @@ bool HFRender::Render()
 
 void HFRender::Voxelize()
 {
-	int voxelTextureSize = Config::Instance()->voxelTextureSize;
-	glViewport(0, 0, voxelTextureSize, voxelTextureSize);
-
-	Camera camera;
-	camera.SetForward(glm::vec3(0, 0, -1));
-	camera.SetProjMatrix(glm::ortho(-1, 1, -1, 1, -1, 1));
-
-	ViewContext voxel_vc;
-	voxel_vc.SetColorMask(glm::bvec4(false));
-	voxel_vc.SetDepthStates(false, false, GL_LESS);
-	voxel_vc.SetCullFace(false, GL_BACK);
-	voxel_vc.SetBlend(false);
-	voxel_vc.SetFramebuffer(m_voxel_FBO);
-
-	camera.FillViewContext(voxel_vc);
-	m_voxel_world.CommitRenderContext(voxel_vc);
-	voxel_vc.FlushRenderContext(true);
-
-	m_texture3D->GenerateMipmap();
-
-	//std::vector<GLfloat> data(4 * voxelTextureSize * voxelTextureSize * voxelTextureSize);
-	//m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
-	//dump_3D_data(&data[0], 4, voxelTextureSize, voxelTextureSize, voxelTextureSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.xyz");
-}
-
-void HFRender::InitVoxelize()
-{
-	int voxelTextureSize = Config::Instance()->voxelTextureSize;
-	m_texture3D = std::make_shared<Texture3D>(voxelTextureSize, voxelTextureSize, voxelTextureSize, nullptr, GL_FLOAT, true);
-	m_texture3D->SetTextureUnit(0);
-	m_voxel_FBO = std::make_shared<Framebuffer>();
-	m_voxel_FBO->AttachImage(m_texture3D, GL_WRITE_ONLY);
-	m_voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(voxelTextureSize, voxelTextureSize, GL_RGB));
-	assert(m_voxel_FBO->CheckStatus());
+	int voxelSize = Config::Instance()->voxelSize;
+	m_texture3D = std::make_shared<Texture3D>(voxelSize, voxelSize, voxelSize, nullptr, GL_FLOAT, true);
+	m_texture3D->SetUnit(0);
+	FramebufferPtr voxel_FBO = std::make_shared<Framebuffer>();
+	voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(voxelSize, voxelSize, GL_RGB));
+	assert(voxel_FBO->CheckStatus());
 
 	MaterialPtr bunny_material = Material::GetVoxelMaterial(m_texture3D, glm::vec3(1, 1, 1));
 	Transform bunny_transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(0.5));
@@ -276,46 +248,39 @@ void HFRender::InitVoxelize()
 
 	MaterialPtr cornell_other_material = Material::GetVoxelMaterial(m_texture3D, glm::vec3(1, 1, 1));
 	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/floor_roof.obj", cornell_trans.GetMatrix(), "floor_roof", cornell_other_material);
+
+	glViewport(0, 0, voxelSize, voxelSize);
+
+	Camera camera;
+	camera.SetForward(glm::vec3(0, 0, -1));
+	camera.SetProjMatrix(glm::ortho(-1, 1, -1, 1, -1, 1));
+
+	ViewContext voxel_vc;
+	voxel_vc.SetColorMask(glm::bvec4(false));
+	voxel_vc.SetDepthStates(false, false, GL_LESS);
+	voxel_vc.SetCullFace(false, GL_BACK);
+	voxel_vc.SetBlend(false);
+	voxel_vc.SetFramebuffer(voxel_FBO);
+
+	camera.FillViewContext(voxel_vc);
+	m_voxel_world.CommitRenderContext(voxel_vc);
+	voxel_vc.FlushRenderContext(true);
+
+	m_texture3D->GenerateMipmap();
+
+	//std::vector<GLfloat> data(4 * voxelSize * voxelSize * voxelSize);
+	//m_texture3D->ReadTextureData(&data[0], GL_FLOAT);
+	//dump_3D_data(&data[0], 4, voxelSize, voxelSize, voxelSize, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\texture3D.xyz");
 }
 
-void HFRender::InitRenderVoxel()
+void HFRender::RenderVoxel()
 {
-	int voxelTextureSize = Config::Instance()->voxelTextureSize;
+	int voxelSize = Config::Instance()->voxelSize;
 	int width = Config::Instance()->width;
 	int height = Config::Instance()->height;
 
-	/*Texture2DPtr front_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
-	front_texture->SetTextureUnit(1);
-	m_front_FBO = std::make_shared<Framebuffer>();
-	m_front_FBO->AttachColorTexture(front_texture);
-	m_front_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
-	assert(m_front_FBO->CheckStatus());
-
-	Texture2DPtr back_texture = std::make_shared<Texture2D>(width, height, nullptr, GL_FLOAT);
-	back_texture->SetTextureUnit(2);
-	m_back_FBO = std::make_shared<Framebuffer>();
-	m_back_FBO->AttachColorTexture(back_texture);
-	m_back_FBO->AttachDepthBuffer(std::make_unique<RenderSurface>(width, height, GL_DEPTH24_STENCIL8));
-	assert(m_back_FBO->CheckStatus());
-
-	MaterialPtr worldPositionMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/world_position.vert",
-		Config::Instance()->project_path + "shader/Visualization/world_position.frag", "", {});
-	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/cube.obj", glm::mat4(1), "world_position", worldPositionMaterial);
-
-	ParamTable params = {
-		{"state", 0}
-	};
-	TextureParamTable texture_param = {
-		{"textureBack", back_texture},
-		{"textureFront", front_texture},
-		{"texture3D", m_texture3D}
-	};
-	MaterialPtr voxelVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/voxel_visualization.vert",
-		Config::Instance()->project_path + "shader/Visualization/voxel_visualization.frag", "", std::move(params), std::move(texture_param));
-	m_world.AddModelEntity(Config::Instance()->project_path + "resource/model/quad.obj", glm::mat4(1), "voxel_visualization", voxelVisualizationMaterial);*/
-
 	ParamTable params2 = {
-		{"pointSize", float(height) / float(voxelTextureSize)}
+		{"pointSize", float(height) / float(voxelSize)}
 	};
 
 	TextureParamTable texture_param2 = {
@@ -324,47 +289,13 @@ void HFRender::InitRenderVoxel()
 	MaterialPtr volumeVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/volume_visualization.vert",
 		Config::Instance()->project_path + "shader/Visualization/volume_visualization.frag", "", std::move(params2), std::move(texture_param2));
 
-	VolumePtr volume = std::make_unique<Volume>(glm::vec3(-1), 2.0f / voxelTextureSize, voxelTextureSize, voxelTextureSize, voxelTextureSize, volumeVisualizationMaterial);
+	VolumePtr volume = std::make_unique<Volume>(glm::vec3(-1), 2.0f / voxelSize, voxelSize, voxelSize, voxelSize, volumeVisualizationMaterial);
 	m_world.AddEntity("volume_visualization", std::move(volume));
 
 	m_camera.SetPosition(glm::vec3(0, 0, 2));
 	m_camera.SetForward(glm::vec3(0, 0, -1));
-}
 
-void HFRender::RenderVoxel()
-{
 	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
-
-	//ViewContext cube_vc;
-	//cube_vc.SetDepthStates(true, true, GL_LESS);
-	//m_world.CommitRenderContext(cube_vc, "world_position");
-
-	//ViewContext screen_vc;
-	//m_world.CommitRenderContext(screen_vc, "voxel_visualization");
-
-	//while (!glfwWindowShouldClose(m_window))
-	//{
-	//	glfwPollEvents();
-	//	ProcessInput();
-
-	//	// Render Cube
-	//	m_camera.FillViewContext(cube_vc);
-	//	// Front.
-	//	cube_vc.SetFramebuffer(m_front_FBO);
-	//	cube_vc.SetCullFace(true, GL_BACK);
-	//	cube_vc.FlushRenderContext(false);
-
-	//	// Back.
-	//	cube_vc.SetFramebuffer(m_back_FBO);
-	//	cube_vc.SetCullFace(true, GL_FRONT);
-	//	cube_vc.FlushRenderContext(false);
-
-	//	// Render 3D texture to screen.
-	//	m_camera.FillViewContext(screen_vc);
-	//	screen_vc.FlushRenderContext(false);
-
-	//	glfwSwapBuffers(m_window);
-	//}
 
 	ViewContext volume_vc;
 	volume_vc.SetDepthStates(true, true, GL_LESS);
@@ -385,7 +316,7 @@ void HFRender::RenderVoxel()
 
 void HFRender::VoxelConeTrace()
 {
-	int voxelTextureSize = Config::Instance()->voxelTextureSize;
+	int voxelSize = Config::Instance()->voxelSize;
 	int width = Config::Instance()->width;
 	int height = Config::Instance()->height;
 
@@ -424,20 +355,91 @@ void HFRender::VoxelConeTrace()
 	}
 }
 
+void HFRender::BuildVoxelList()
+{
+	int voxelSize = Config::Instance()->voxelSize;
+
+	MaterialPtr bunny_material = Material::GetVoxelListMaterial(glm::vec3(1, 1, 1));
+	Transform bunny_transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(0.5));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", bunny_transform.GetMatrix(), "bunny", bunny_material);
+
+	Transform cornell_trans(glm::vec3(0), glm::mat4(1), glm::vec3(0.99));
+	MaterialPtr cornell_left_material = Material::GetVoxelListMaterial(glm::vec3(1, 0, 0));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/left_wall.obj", cornell_trans.GetMatrix(), "left_wall", cornell_left_material);
+
+	MaterialPtr cornell_right_material = Material::GetVoxelListMaterial(glm::vec3(0, 0, 1));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/right_wall.obj", cornell_trans.GetMatrix(), "right_wall", cornell_right_material);
+
+	MaterialPtr cornell_other_material = Material::GetVoxelListMaterial(glm::vec3(1, 1, 1));
+	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/floor_roof.obj", cornell_trans.GetMatrix(), "floor_roof", cornell_other_material);
+
+	AutomicBufferPtr automic_buffer = std::make_shared<AutomicBuffer>(0);
+	automic_buffer->BindBase(0);
+
+	FramebufferPtr voxel_FBO = std::make_shared<Framebuffer>();
+	voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(voxelSize, voxelSize, GL_RGB));
+	assert(voxel_FBO->CheckStatus());
+
+	ViewContext voxel_vc;
+	voxel_vc.SetColorMask(glm::bvec4(false));
+	voxel_vc.SetDepthStates(false, false, GL_LESS);
+	voxel_vc.SetCullFace(false, GL_BACK);
+	voxel_vc.SetBlend(false);
+	voxel_vc.SetFramebuffer(voxel_FBO);
+
+	glViewport(0, 0, voxelSize, voxelSize);
+	m_voxel_world.CommitRenderContext(voxel_vc);
+
+	// Obtain number of voxel fragments
+	voxel_vc.FlushRenderContext(false);
+	automic_buffer->Sync();
+	uint32_t numVoxelFrag = automic_buffer->GetVal();
+	automic_buffer->SetVal(0);
+	std::cout << "Number of Entries in Voxel Fragment List: " << numVoxelFrag << std::endl;
+
+	// Create buffers for voxel fragment list
+	TextureBufferPtr voxel_pos = std::make_shared<TextureBuffer>(nullptr, sizeof(GLuint) * numVoxelFrag, GL_R32UI);
+	voxel_pos->SetUnit(0);
+	TextureBufferPtr voxel_kd = std::make_shared<TextureBuffer>(nullptr, sizeof(GLuint) * numVoxelFrag, GL_RGBA8);
+	voxel_kd->SetUnit(1);
+
+	bunny_material->SetParam("u_bStore", 1);
+	bunny_material->SetImageParam("u_voxelPos", voxel_pos);
+	bunny_material->SetImageParam("u_voxelKd", voxel_kd);
+
+	cornell_left_material->SetParam("u_bStore", 1);
+	cornell_left_material->SetImageParam("u_voxelPos", voxel_pos);
+	cornell_left_material->SetImageParam("u_voxelKd", voxel_kd);
+
+	cornell_right_material->SetParam("u_bStore", 1);
+	cornell_right_material->SetImageParam("u_voxelPos", voxel_pos);
+	cornell_right_material->SetImageParam("u_voxelKd", voxel_kd);
+
+	cornell_other_material->SetParam("u_bStore", 1);
+	cornell_other_material->SetImageParam("u_voxelPos", voxel_pos);
+	cornell_other_material->SetImageParam("u_voxelKd", voxel_kd);
+
+	//Voxelize the scene again, this time store the data in the voxel fragment list
+	voxel_vc.FlushRenderContext(false);
+	voxel_pos->SyncImage();
+
+	std::vector<GLuint> data(numVoxelFrag);
+	voxel_kd->ReadTextureData(&data[0], sizeof(GLuint) * numVoxelFrag);
+	dump_buffer_data(&data[0], numVoxelFrag, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\voxel_list.xyz");
+}
+
 int main()
 {
 	Config::Instance()->project_path = "C:/Users/wanglingye/wly/project/HFRender/";
-	Config::Instance()->voxelTextureSize = 128;
+	Config::Instance()->voxelSize = 128;
 	HFRender* render = HFRender::Instance();
 	render->Init(1024, 780);
 
 	//render->Render();
 
-	render->InitVoxelize();
-	render->Voxelize();
-
-	//render->InitRenderVoxel();
+	//render->Voxelize();
 	//render->RenderVoxel();
+	//render->VoxelConeTrace();
 
-	render->VoxelConeTrace();
+	render->BuildVoxelList();
 }

@@ -199,8 +199,14 @@ void Shader::Set2FloatV(const std::string& name, const GLfloat values[][2], int 
 
 void Shader::SetTexture(const std::string& name, const ITexturePtr& texture)const
 {
-    texture->Activate();
-    glUniform1i(GetUniformLocation(name), texture->GetTextureUnit());
+    texture->ActivateTexture();
+    glUniform1i(GetUniformLocation(name), texture->GetUnit());
+}
+
+void Shader::SetImage(const std::string& name, const ITexturePtr& texture)const
+{
+    texture->BindImage();
+    glUniform1i(GetUniformLocation(name), texture->GetUnit());
 }
 
 bool Shader::checkCompileErrors(GLuint object, std::string type)
@@ -230,4 +236,27 @@ bool Shader::checkCompileErrors(GLuint object, std::string type)
         }
     }
     return success;
+}
+
+ShaderLoader* ShaderLoader::s_inst = new ShaderLoader();
+
+ShaderPtr ShaderLoader::LoadShader(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path)
+{
+    std::string key = vs_path + "_" + fs_path + "_" + gs_path;
+    auto it = m_shader_cache.find(key);
+    if (it != m_shader_cache.end())
+    {
+        return it->second;
+    }
+
+    ShaderPtr shader = std::make_shared<Shader>();
+    if (shader->Init(vs_path, fs_path, gs_path))
+    {
+        m_shader_cache[key] = shader;
+        return shader;
+    }
+    else
+    {
+        return ShaderPtr();
+    }
 }

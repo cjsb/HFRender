@@ -13,7 +13,6 @@ public:
 	void AttachDepthBuffer(RenderSurfacePtr&& depth_surface);
 	void AttachColorTexture(const Texture2DPtr& color_texture);
 	void AttachDepthTexture(const Texture2DPtr& depth_texture);
-	void AttachImage(const ITexturePtr& texture, GLenum access);
 	bool CheckStatus();
 	void Use();
 
@@ -30,8 +29,6 @@ protected:
 	std::vector<Texture2DPtr> m_texture2Ds;
 	Texture2DPtr m_depth_texture;
 	GLuint m_color_attachment = GL_COLOR_ATTACHMENT0;
-
-	std::vector<ITexturePtr> m_images;
 
 	glm::vec4 m_clear_color = glm::vec4(0.f, 0.f, 0.f, 0.f);
 	float m_clear_depth = 1.f;

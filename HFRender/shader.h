@@ -38,6 +38,7 @@ public:
     void SetFloatV(const std::string& name, const GLfloat* values, int num)const;
     void Set2FloatV(const std::string& name, const GLfloat values[][2], int num)const;
     void SetTexture(const std::string& name, const ITexturePtr& texture)const;
+    void SetImage(const std::string& name, const ITexturePtr& texture)const;
     
 private:
     // Checks if compilation or linking failed and if so, print the error logs
@@ -61,3 +62,15 @@ private:
 };
 
 typedef std::shared_ptr<Shader> ShaderPtr;
+
+
+class ShaderLoader
+{
+public:
+    static ShaderLoader* Instance() { return s_inst; };
+    ShaderPtr LoadShader(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path);
+
+private:
+    std::unordered_map<std::string, ShaderPtr> m_shader_cache;
+    static ShaderLoader* s_inst;
+};

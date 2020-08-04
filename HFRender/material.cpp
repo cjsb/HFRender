@@ -1,6 +1,7 @@
 #include <typeindex>
 #include "material.h"
 #include "config.h"
+#include "camera.h"
 
 void Material::Apply()
 {
@@ -52,6 +53,11 @@ void Material::Apply()
 	{
 		m_shader->SetTexture(it.first, it.second);
 	}
+
+	for (const auto& it : m_image_param)
+	{
+		m_shader->SetImage(it.first, it.second);
+	}
 }
 
 std::shared_ptr<Material> Material::GetDefaultMaterial()
@@ -63,30 +69,28 @@ std::shared_ptr<Material> Material::GetDefaultMaterial()
 
 std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path, ParamTable&& params)
 {
-	ShaderPtr shader = std::make_shared<Shader>();
-	if (!shader->Init(vs_path, fs_path, gs_path))
-	{
-		return std::shared_ptr<Material>();
-	}
-
+	ShaderPtr shader = ShaderLoader::Instance()->LoadShader(vs_path, fs_path, gs_path);
 	return std::make_shared<Material>(std::move(shader), std::move(params));
 }
 
 std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path,
 	ParamTable&& params, TextureParamTable&& texture_param)
 {
-	ShaderPtr shader = std::make_shared<Shader>();
-	if (!shader->Init(vs_path, fs_path, gs_path))
-	{
-		return std::shared_ptr<Material>();
-	}
-
+	ShaderPtr shader = ShaderLoader::Instance()->LoadShader(vs_path, fs_path, gs_path);
 	return std::make_shared<Material>(std::move(shader), std::move(params), std::move(texture_param));
+}
+
+std::shared_ptr<Material> Material::CreateMaterial(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path,
+	ParamTable&& params, TextureParamTable&& texture_param, TextureParamTable&& image_param)
+{
+	ShaderPtr shader = ShaderLoader::Instance()->LoadShader(vs_path, fs_path, gs_path);
+	return std::make_shared<Material>(std::move(shader), std::move(params), std::move(texture_param), std::move(image_param));
 }
 
 std::shared_ptr<Material> Material::GetVCTDiffuse(const Texture3DPtr& texture3D, glm::vec3 color)
 {
 	ParamTable params = {
+		{"voxel_size", 2.f / Config::Instance()->voxelSize},
 		{"material.diffuseColor",color},
 		{"material.specularColor",color},
 		{"material.diffuseReflectivity",1.f},
@@ -114,16 +118,17 @@ std::shared_ptr<Material> Material::GetVCTDiffuse(const Texture3DPtr& texture3D,
 std::shared_ptr<Material> Material::GetVCTSpecular(const Texture3DPtr& texture3D, glm::vec3 color)
 {
 	ParamTable params = {
+		{"voxel_size", 2.f / Config::Instance()->voxelSize},
 		{"material.diffuseColor",color},
 		{"material.specularColor",color},
-		{"material.diffuseReflectivity",0.f},
-		{"material.specularReflectivity",1.f},
+		{"material.diffuseReflectivity",0.5f},
+		{"material.specularReflectivity",0.5f},
 		{"material.specularDiffusion",0.5f},
 		{"material.emissivity",0.0f},
 		{"material.transparency",0.0f},
 		{"material.refractiveIndex",1.0f},
 		{"settings.indirectSpecularLight", true},
-		{"settings.indirectDiffuseLight", false},
+		{"settings.indirectDiffuseLight", true},
 		{"settings.directLight", true},
 		{"settings.shadows", true},
 		{"pointLights[0].position",glm::vec3(0, 0.9, 0)},
@@ -151,11 +156,40 @@ std::shared_ptr<Material> Material::GetVoxelMaterial(const Texture3DPtr& texture
 		{"pointLights[0].color",glm::vec3(1)},
 		{"numberOfLights",1}
 	};
-	TextureParamTable texture_param = {
+	TextureParamTable image_param = {
 		{"texture3D", texture3D}
 	};
 	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelization.vert",
 		Config::Instance()->project_path + "shader/voxelization.frag",
-		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params), std::move(texture_param));
+		Config::Instance()->project_path + "shader/voxelization.geom", std::move(params), {}, std::move(image_param));
+	return material;
+}
+
+std::shared_ptr<Material> Material::GetVoxelListMaterial(glm::vec3 color)
+{
+	glm::mat4 orth = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+	Camera camera;
+	camera.SetPosition(glm::vec3(0));
+
+	camera.SetForward(glm::vec3(-1, 0, 0));
+	glm::mat4 vpX = orth * camera.GetViewMatrix();
+
+	camera.SetForward(glm::vec3(0, -1, 0));
+	glm::mat4 vpY = orth * camera.GetViewMatrix();
+
+	camera.SetForward(glm::vec3(0, 0, -1));
+	glm::mat4 vpZ = orth * camera.GetViewMatrix();
+
+	ParamTable params = {
+		{"u_VPx", vpX},
+		{"u_VPy", vpY},
+		{"u_VPz", vpZ},
+		{"u_voxelSize", Config::Instance()->voxelSize},
+		{"u_Color", color},
+		{"u_bStore", 0}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelize_list.vert",
+		Config::Instance()->project_path + "shader/voxelize_list.frag",
+		Config::Instance()->project_path + "shader/voxelize_list.geom", std::move(params));
 	return material;
 }

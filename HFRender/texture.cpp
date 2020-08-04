@@ -90,14 +90,49 @@ Texture3D::~Texture3D()
 
 void Texture3D::GenerateMipmap()
 {
-    Activate();
+    ActivateTexture();
     glGenerateMipmap(GL_TEXTURE_3D);
     GL_CHECK_ERROR;
 }
 
 void Texture3D::ReadTextureData(void* data, GLenum data_type)
 {
-    Activate();
+    ActivateTexture();
     glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, data_type, data);
+    GL_CHECK_ERROR;
+}
+
+TextureBuffer::TextureBuffer(const void* data, size_t len, GLenum internal_format) :m_internal_format(internal_format)
+{
+    glGenBuffers(1, &m_buffer_id);
+    glBindBuffer(GL_TEXTURE_BUFFER, m_buffer_id);
+    glBufferData(GL_TEXTURE_BUFFER, len, data, GL_STATIC_DRAW);
+    GL_CHECK_ERROR;
+
+    glGenTextures(1, &m_texture_id);
+    glBindTexture(GL_TEXTURE_BUFFER, m_texture_id);
+    glTexBuffer(GL_TEXTURE_BUFFER, internal_format, m_buffer_id);
+    GL_CHECK_ERROR;
+}
+
+TextureBuffer::~TextureBuffer()
+{
+    if (m_buffer_id)
+    {
+        glDeleteBuffers(1, &m_buffer_id);
+        m_buffer_id = 0;
+    }
+
+    if (m_texture_id)
+    {
+        glDeleteTextures(1, &m_texture_id);
+        m_texture_id = 0;
+    }
+}
+
+void TextureBuffer::ReadTextureData(void* data, size_t len)
+{
+    glBindBuffer(GL_TEXTURE_BUFFER, m_buffer_id);
+    glGetBufferSubData(GL_TEXTURE_BUFFER, 0, len, data);
     GL_CHECK_ERROR;
 }

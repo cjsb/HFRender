@@ -1,6 +1,3 @@
-// Lit (diffuse) fragment voxelization shader.
-// Author:	Fredrik Präntare <prantare@gmail.com> 
-// Date:	11/26/2016
 #version 450 core
 
 // Lighting settings.

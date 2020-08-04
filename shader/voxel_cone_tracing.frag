@@ -21,7 +21,7 @@
 // Light (voxel) cone tracing settings.
 // --------------------------------------
 #define MIPMAP_HARDCAP 5.4f /* Too high mipmap levels => glitchiness, too low mipmap levels => sharpness. */
-#define VOXEL_SIZE (1/64.0) /* Size of a voxel. 128x128x128 => 1/128 = 0.0078125. */
+//#define VOXEL_SIZE (1/64.0) /* Size of a voxel. 128x128x128 => 1/128 = 0.0078125. */
 #define SHADOWS 1 /* Shadow cone tracing. */
 #define DIFFUSE_INDIRECT_FACTOR 0.52f /* Just changes intensity of diffuse indirect lighting. */
 // --------------------------------------
@@ -67,6 +67,7 @@ struct Settings {
 	bool shadows; // Whether shadows should be rendered or not.
 };
 
+uniform float voxel_size;
 uniform Material material;
 uniform Settings settings;
 uniform PointLight pointLights[MAX_LIGHTS];
@@ -106,9 +107,9 @@ float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
 
 	float acc = 0;
 
-	float dist = 3 * VOXEL_SIZE;
+	float dist = 3 * voxel_size;
 	// I'm using a pretty big margin here since I use an emissive light ball with a pretty big radius in my demo scenes.
-	const float STOP = targetDistance - 16 * VOXEL_SIZE;
+	const float STOP = targetDistance - 16 * voxel_size;
 
 	while(dist < STOP && acc < 1){	
 		vec3 c = from + dist * direction;
@@ -119,7 +120,7 @@ float traceShadowCone(vec3 from, vec3 direction, float targetDistance){
 		float s2 = 0.135 * textureLod(texture3D, c, 4.5 * l).a;
 		float s = s1 + s2;
 		acc += (1 - acc) * s;
-		dist += 0.9 * VOXEL_SIZE * (1 + 0.05 * l);
+		dist += 0.9 * voxel_size * (1 + 0.05 * l);
 	}
 	return 1 - pow(smoothstep(0, 1, acc * 1.4), 1.0 / 1.4);
 }	
@@ -140,13 +141,16 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 	// Trace.
 	while(dist < SQRT2 && acc.a < 1){
 		vec3 c = from + dist * direction;
+		if(!isInsideCube(c, 0)) break;
 		c = scaleAndBias(from + dist * direction);
-		float l = (1 + CONE_SPREAD * dist / VOXEL_SIZE);
+		float l = (1 + CONE_SPREAD * dist / voxel_size);
 		float level = log2(l);
 		float ll = (level + 1) * (level + 1);
 		vec4 voxel = textureLod(texture3D, c, min(MIPMAP_HARDCAP, level));
-		acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
-		dist += ll * VOXEL_SIZE * 2;
+		//acc += 0.075 * ll * voxel * pow(1 - voxel.a, 2);
+		acc.rgb = acc.rgb*acc.a+(1-acc.a)*voxel.a*voxel.rgb;
+		acc.a = acc.a+(1-acc.a)*voxel.a;
+		dist += ll * voxel_size * 2;
 	}
 	return pow(acc.rgb * 2.0, vec3(1.5));
 }
@@ -155,8 +159,8 @@ vec3 traceDiffuseVoxelCone(const vec3 from, vec3 direction){
 vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
 	direction = normalize(direction);
 
-	const float OFFSET = 8 * VOXEL_SIZE;
-	const float STEP = VOXEL_SIZE;
+	const float OFFSET = 8 * voxel_size;
+	const float STEP = voxel_size;
 
 	from += OFFSET * normal;
 	
@@ -169,7 +173,7 @@ vec3 traceSpecularVoxelCone(vec3 from, vec3 direction){
 		if(!isInsideCube(c, 0)) break;
 		c = scaleAndBias(c); 
 		
-		float level = 0.1 * material.specularDiffusion * log2(1 + dist / VOXEL_SIZE);
+		float level = 0.1 * material.specularDiffusion * log2(1 + dist / voxel_size);
 		vec4 voxel = textureLod(texture3D, c, min(level, MIPMAP_HARDCAP));
 		float f = 1 - acc.a;
 		acc.rgb += 0.25 * (1 + material.specularDiffusion) * voxel.rgb * voxel.a * f;
@@ -196,7 +200,7 @@ vec3 indirectDiffuseLight(){
 	const vec3 corner2 = 0.5f * (ortho - ortho2);
 
 	// Find start position of trace (start with a bit of offset).
-	const vec3 N_OFFSET = normal * (1 + 4 * ISQRT2) * VOXEL_SIZE;
+	const vec3 N_OFFSET = normal * (1 + 4 * ISQRT2) * voxel_size;
 	const vec3 C_ORIGIN = worldPositionFrag + N_OFFSET;
 
 	// Accumulate indirect diffuse light.

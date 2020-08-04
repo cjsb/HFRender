@@ -1,5 +1,3 @@
-// Author:	Fredrik Präntare <prantare@gmail.com>
-// Date:	11/26/2016
 #version 450 core
 
 layout(location = 0) in vec3 position;

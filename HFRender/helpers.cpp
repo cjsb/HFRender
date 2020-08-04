@@ -61,3 +61,18 @@ void dump_3D_data(float* data, uint32_t stride, uint32_t width, uint32_t height,
 	}
 	file.close();
 }
+
+void dump_buffer_data(uint32_t* data, uint32_t num, const std::string& path)
+{
+	std::ofstream file(path);
+	for (int i = 0;i < num;i++)
+	{
+		uint32_t d = data[i];
+		uint32_t x = (d & 0x000000FF);
+		uint32_t y = (d & 0x0000FF00) >> 8U;
+		uint32_t z = (d & 0x00FF0000) >> 16U;
+		file << float(x) * 128 / 255 << " " << float(y) * 128 / 255 << " " << float(z) * 128 / 255 << std::endl;
+	}
+
+	file.close();
+}

@@ -53,14 +53,6 @@ void Framebuffer::AttachDepthTexture(const Texture2DPtr& depth_texture)
 	m_depth_texture = depth_texture;
 }
 
-void Framebuffer::AttachImage(const ITexturePtr& texture, GLenum access)
-{
-	glBindFramebuffer(GL_FRAMEBUFFER, m_id);
-	glBindImageTexture(texture->GetTextureUnit(), texture->GetId(), 0, GL_TRUE, 0, access, texture->GetInternalFormat());
-	GL_CHECK_ERROR;
-	m_images.emplace_back(texture);
-}
-
 bool Framebuffer::CheckStatus()
 {
 	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);

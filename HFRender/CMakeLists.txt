@@ -32,6 +32,7 @@ set(SOURCE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/vertex_buffer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/world.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/helpers.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/automic_buffer.cpp
 	${THIRD_PARTY_PATH}/src/glad/glad/glad.c
 	${IMGUI_FILES}
 )
@@ -50,6 +51,7 @@ set(HEADER_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/vertex_buffer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/world.h
 	${CMAKE_CURRENT_SOURCE_DIR}/helpers.h
+	${CMAKE_CURRENT_SOURCE_DIR}/automic_buffer.h
 )
 
 add_executable (${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})

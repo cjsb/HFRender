@@ -9,6 +9,8 @@ void dump_data(float* data, uint32_t stride, uint32_t count, const std::string& 
 
 void dump_3D_data(float* data, uint32_t stride, uint32_t width, uint32_t height, uint32_t depth, const std::string& path);
 
+void dump_buffer_data(uint32_t* data, uint32_t num, const std::string& path);
+
 class Transform
 {
 public:
