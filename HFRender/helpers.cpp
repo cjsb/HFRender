@@ -68,10 +68,10 @@ void dump_buffer_data(uint32_t* data, uint32_t num, const std::string& path)
 	for (int i = 0;i < num;i++)
 	{
 		uint32_t d = data[i];
-		uint32_t x = (d & 0x000000FF);
-		uint32_t y = (d & 0x0000FF00) >> 8U;
-		uint32_t z = (d & 0x00FF0000) >> 16U;
-		file << float(x) * 128 / 255 << " " << float(y) * 128 / 255 << " " << float(z) * 128 / 255 << std::endl;
+		uint32_t x = (d & 0x000003FF);
+		uint32_t y = (d & 0x000FFC00) >> 10U;
+		uint32_t z = (d & 0x3FF00000) >> 20U;
+		file << x << " " << y << " " << z << std::endl;
 	}
 
 	file.close();

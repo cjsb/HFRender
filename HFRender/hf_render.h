@@ -27,6 +27,8 @@ public:
 	void RenderVoxel();
 	void VoxelConeTrace();
 	void BuildVoxelList();
+	void BuildSVO();
+	void RenderOctree();
 private:
 	HFRender() {}
 	bool InitGlfw();
@@ -52,6 +54,12 @@ private:
 	World m_voxel_world;
 
 	Texture3DPtr m_texture3D;
+	TextureBufferPtr m_voxel_pos;
+	TextureBufferPtr m_voxel_kd;
+	TextureBufferPtr m_octree_idx;
+	TextureBufferPtr m_octree_kd;
+
+	uint32_t m_numVoxelFrag;
 
 	static HFRender* s_inst;
 };

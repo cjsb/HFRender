@@ -115,6 +115,57 @@ bool Shader::Init(const std::string& vs_path, const std::string& fs_path, const 
     return true;
 }
 
+bool Shader::Init(const std::string& cmp_path)
+{
+    std::string computeCode;
+    try
+    {
+        // Open files
+        std::ifstream computeShaderFile(cmp_path);
+        if (computeShaderFile.fail())
+        {
+            std::cout << "ERROR::SHADER: Failed to open compute shader files" << std::endl;
+            return false;
+        }
+
+        std::stringstream cShaderStream;
+        // Read file's buffer contents into streams
+        cShaderStream << computeShaderFile.rdbuf();
+        // close file handlers
+        computeShaderFile.close();
+        // Convert stream into string
+        computeCode = cShaderStream.str();
+    }
+    catch (std::exception e)
+    {
+        std::cout << "ERROR::SHADER: Failed to read shader files" << std::endl;
+    }
+
+    const GLchar* cShaderCode = computeCode.c_str();
+
+    GLuint sCompute = glCreateShader(GL_COMPUTE_SHADER);
+    glShaderSource(sCompute, 1, &cShaderCode, NULL);
+    glCompileShader(sCompute);
+    if (!checkCompileErrors(sCompute, "COMPUTE"))
+    {
+        return false;
+    }
+
+    // Shader Program
+    this->m_id = glCreateProgram();
+    glAttachShader(this->m_id, sCompute);
+    glLinkProgram(this->m_id);
+    if (!checkCompileErrors(this->m_id, "PROGRAM"))
+    {
+        return false;
+    }
+
+    // Delete the shaders as they're linked into our program now and no longer necessery
+    glDeleteShader(sCompute);
+
+    return true;
+}
+
 void Shader::SetBool(const std::string& name, bool value) const
 {
     glUniform1i(GetUniformLocation(name), (int)value);
@@ -251,6 +302,27 @@ ShaderPtr ShaderLoader::LoadShader(const std::string& vs_path, const std::string
 
     ShaderPtr shader = std::make_shared<Shader>();
     if (shader->Init(vs_path, fs_path, gs_path))
+    {
+        m_shader_cache[key] = shader;
+        return shader;
+    }
+    else
+    {
+        return ShaderPtr();
+    }
+}
+
+ShaderPtr ShaderLoader::LoadShader(const std::string& cmp_path)
+{
+    std::string key = cmp_path;
+    auto it = m_shader_cache.find(key);
+    if (it != m_shader_cache.end())
+    {
+        return it->second;
+    }
+
+    ShaderPtr shader = std::make_shared<Shader>();
+    if (shader->Init(cmp_path))
     {
         m_shader_cache[key] = shader;
         return shader;

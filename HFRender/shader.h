@@ -21,6 +21,8 @@ public:
     GLuint GetId() { return m_id; }
     // Compiles the shader from given source code
     bool Init(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path); // Note: geometry source code is optional 
+    bool Init(const std::string& cmp_path);
+
     // Utility functions
     void SetFloat(const std::string& name, GLfloat value)const;
     void SetBool(const std::string& name, bool value) const;
@@ -69,6 +71,7 @@ class ShaderLoader
 public:
     static ShaderLoader* Instance() { return s_inst; };
     ShaderPtr LoadShader(const std::string& vs_path, const std::string& fs_path, const std::string& gs_path);
+    ShaderPtr LoadShader(const std::string& cmp_path);
 
 private:
     std::unordered_map<std::string, ShaderPtr> m_shader_cache;

@@ -24,7 +24,8 @@ public:
 	int width;
 	int height;
 	std::string project_path;
-	int voxelSize = 64;
+	int voxelSize = 128;
+	int octreeLevel = 7;
 
 private:
 	Config() {}

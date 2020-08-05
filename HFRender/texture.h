@@ -104,7 +104,7 @@ typedef std::shared_ptr<Texture3D> Texture3DPtr;
 class TextureBuffer :public ITexture
 {
 public:
-	TextureBuffer(const void* data, size_t len, GLenum interal_format);
+	TextureBuffer(const void* data, size_t len, GLenum format);
 	~TextureBuffer();
 
 	virtual void ActivateTexture() override
@@ -126,11 +126,13 @@ public:
 	virtual GLuint GetUnit() override { return m_unit; }
 	virtual GLenum GetInternalFormat() override { return m_internal_format; }
 	virtual void GenerateMipmap()override {}
+	void SetInternalFormat(GLenum internal_format) { m_internal_format = internal_format; }
 	void ReadTextureData(void* data, size_t len);
 protected:
 	GLuint m_texture_id;
 	GLuint m_buffer_id;
 	GLenum m_internal_format;
+	GLenum m_format;
 	GLuint m_unit = 0;
 	GLenum m_access = GL_READ_WRITE;
 };

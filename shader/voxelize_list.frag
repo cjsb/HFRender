@@ -44,7 +44,7 @@ void main()
 	if( u_bStore == 1 )
 	{
 	   imageStore( u_voxelPos, int(idx), texcoord);
-	   //imageStore( u_voxelKd, int(idx), vec4(u_Color,0) );
-	   imageStore( u_voxelKd, int(idx), vec4(texcoord)/u_voxelSize );
+	   imageStore( u_voxelKd, int(idx), vec4(u_Color,0));
+	   //imageStore( u_voxelKd, int(idx), vec4(texcoord)/u_voxelSize );
 	}
 }

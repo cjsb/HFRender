@@ -102,7 +102,7 @@ void Texture3D::ReadTextureData(void* data, GLenum data_type)
     GL_CHECK_ERROR;
 }
 
-TextureBuffer::TextureBuffer(const void* data, size_t len, GLenum internal_format) :m_internal_format(internal_format)
+TextureBuffer::TextureBuffer(const void* data, size_t len, GLenum format) :m_format(format), m_internal_format(format)
 {
     glGenBuffers(1, &m_buffer_id);
     glBindBuffer(GL_TEXTURE_BUFFER, m_buffer_id);
@@ -111,7 +111,7 @@ TextureBuffer::TextureBuffer(const void* data, size_t len, GLenum internal_forma
 
     glGenTextures(1, &m_texture_id);
     glBindTexture(GL_TEXTURE_BUFFER, m_texture_id);
-    glTexBuffer(GL_TEXTURE_BUFFER, internal_format, m_buffer_id);
+    glTexBuffer(GL_TEXTURE_BUFFER, format, m_buffer_id);
     GL_CHECK_ERROR;
 }
 
