@@ -42,3 +42,11 @@ void World::SetModelRenderEnable(const std::string& name, bool enable)
 		it->second->SetRenderEnable(enable);
 	}
 }
+
+void World::UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param)
+{
+	for (auto& it : m_entities)
+	{
+		it.second->UpdateMaterialParam(param, texture_param, image_param);
+	}
+}

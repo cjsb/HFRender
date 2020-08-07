@@ -11,6 +11,7 @@ public:
 	void AddModelEntity(const std::string& path, const glm::mat4& transform, const std::string& name, const MaterialPtr& material);
 	void AddEntity(const std::string& name, IEntityPtr&& entity);
 	void SetModelRenderEnable(const std::string& name, bool enable);
+	void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param);
 protected:
 	std::unordered_map<std::string, IEntityPtr> m_entities;
 };

@@ -118,6 +118,25 @@ void ModelEntity::SetRenderEnable(bool enable)
     }
 }
 
+void ModelEntity::UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param)
+{
+    if (m_material)
+    {
+        for (auto& it : param)
+        {
+            m_material->SetParam(it.first, it.second);
+        }
+        for (auto& it : texture_param)
+        {
+            m_material->SetTextureParam(it.first, it.second);
+        }
+        for (auto& it : image_param)
+        {
+            m_material->SetImageParam(it.first, it.second);
+        }
+    }
+}
+
 Volume::Volume(glm::vec3 start, float stride, uint32_t width, uint32_t height, uint32_t depth, const MaterialPtr& material)
     :m_start(start), m_stride(stride), m_width(width), m_height(height), m_depth(depth), m_material(material)
 {

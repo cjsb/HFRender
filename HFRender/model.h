@@ -37,6 +37,7 @@ public:
 	virtual ~IEntity() {}
 	virtual void CommitRenderContext(ViewContext& view_context) = 0;
 	virtual void SetRenderEnable(bool enable) = 0;
+	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param) = 0;
 };
 typedef std::unique_ptr<IEntity> IEntityPtr;
 
@@ -46,6 +47,7 @@ public:
 	ModelEntity(const std::string& path, const glm::mat4& transform, const MaterialPtr& material);
 	virtual void CommitRenderContext(ViewContext& view_context) override;
 	virtual void SetRenderEnable(bool enable) override;
+	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param) override;
 
 	void SetMaterial(const MaterialPtr& material);
 	const std::string& GetPath() const { return m_path; }
