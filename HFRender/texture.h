@@ -64,7 +64,8 @@ typedef std::shared_ptr<Texture2D> Texture2DPtr;
 class Texture3D :public ITexture
 {
 public:
-	Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data, GLenum data_type = GL_UNSIGNED_BYTE, bool generateMipmaps = false);
+	Texture3D(uint32_t width, uint32_t height, uint32_t depth, GLenum internal_format, GLenum format, bool generateMipmaps = false,
+		void* data=nullptr, GLenum data_type = GL_UNSIGNED_BYTE);
 
 	~Texture3D();
 
@@ -95,6 +96,7 @@ private:
 	uint32_t m_depth;
 	GLuint m_unit = 0;
 	GLenum m_internal_format;
+	GLenum m_format;
 	GLenum m_access = GL_READ_WRITE;
 };
 

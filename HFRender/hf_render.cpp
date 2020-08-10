@@ -228,7 +228,7 @@ bool HFRender::Render()
 void HFRender::Voxelize()
 {
 	int voxelSize = Config::Instance()->voxelSize;
-	m_texture3D = std::make_shared<Texture3D>(voxelSize, voxelSize, voxelSize, nullptr, GL_FLOAT, true);
+	m_texture3D = std::make_shared<Texture3D>(voxelSize, voxelSize, voxelSize, GL_RGBA8, GL_RGBA, true);
 	m_texture3D->SetUnit(0);
 	FramebufferPtr voxel_FBO = std::make_shared<Framebuffer>();
 	voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(voxelSize, voxelSize, GL_RGB));

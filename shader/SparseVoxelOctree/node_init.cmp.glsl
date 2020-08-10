@@ -4,8 +4,9 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 uniform int u_allocStart;
 uniform int u_num;
 
-layout(r32ui) coherent uniform uimageBuffer u_octreeIdx;
-layout(r32ui) coherent uniform uimageBuffer u_octreeKd;
+layout(r32ui) coherent uniform uimageBuffer u_octreeNodeIdx;
+layout(r32ui) coherent uniform uimage3D u_octreeBrickColor;
+layout(r32ui) coherent uniform uimage3D u_octreeBrickNormal
 
 void main()
 {
@@ -14,6 +15,7 @@ void main()
 	if (thxId >= u_num)
 		return;
 
-	imageStore(u_octreeIdx, int(u_allocStart + thxId), uvec4(0, 0, 0, 0));
-	imageStore(u_octreeKd, int(u_allocStart + thxId), uvec4(0, 0, 0, 0));
+	imageStore(u_octreeNodeIdx, int(u_allocStart + thxId), uvec4(0, 0, 0, 0));
+	imageStore(u_octreeBrickColor, int(u_allocStart + thxId), uvec4(0, 0, 0, 0));
+	imageStore(u_octreeBrickNormal, int(u_allocStart + thxId), uvec4(0, 0, 0, 0));
 }

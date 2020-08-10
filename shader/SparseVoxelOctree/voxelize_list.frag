@@ -8,8 +8,9 @@ in vec3 f_pos;
 //atomic counter 
 layout (binding = 0, offset = 0) uniform atomic_uint u_voxelFragCount;
 
-layout(rgb10_a2ui) uniform uimageBuffer u_voxelPos;
-layout(rgba8) uniform imageBuffer u_voxelKd;
+layout(rgb10_a2ui) uniform uimageBuffer u_voxelListPos;
+layout(rgba8) uniform imageBuffer u_voxelListColor;
+layout(rgba8) uniform imageBuffer u_voxelListNormal;
 
 uniform vec3 u_Color;
 uniform int u_voxelSize;
@@ -20,7 +21,6 @@ void main()
     if( f_pos.x < f_AABB.x || f_pos.y < f_AABB.y || f_pos.x > f_AABB.z || f_pos.y > f_AABB.w )
 	   discard ;
 
-    vec4 data = vec4(1.0,0.0,0.0,0.0);
 	uvec4 temp = uvec4( gl_FragCoord.x, gl_FragCoord.y, u_voxelSize * gl_FragCoord.z, 0 ) ;
 	uvec4 texcoord;
 	if( f_axis == 1 )
@@ -43,8 +43,8 @@ void main()
 	uint idx = atomicCounterIncrement( u_voxelFragCount );
 	if( u_bStore == 1 )
 	{
-	   imageStore( u_voxelPos, int(idx), texcoord);
-	   imageStore( u_voxelKd, int(idx), vec4(u_Color,0));
-	   //imageStore( u_voxelKd, int(idx), vec4(texcoord)/u_voxelSize );
+	   imageStore( u_voxelListPos, int(idx), texcoord);
+	   imageStore( u_voxelListColor, int(idx), vec4(u_Color,0));
+	   imageStore( u_voxelListNormal, int(idx), vec4(f_normal,0));
 	}
 }

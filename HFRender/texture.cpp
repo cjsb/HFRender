@@ -47,7 +47,8 @@ void Texture2D::GenerateMipmap()
     GL_CHECK_ERROR;
 }
 
-Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data, GLenum data_type, bool generateMipmaps) :m_width(width), m_height(height), m_depth(depth)
+Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, GLenum internal_format, GLenum format, bool generateMipmaps,
+    void* data, GLenum data_type) :m_width(width), m_height(height), m_depth(depth), m_internal_format(internal_format), m_format(format)
 {
     glGenTextures(1, &m_id);
     glBindTexture(GL_TEXTURE_3D, m_id);
@@ -66,8 +67,7 @@ Texture3D::Texture3D(uint32_t width, uint32_t height, uint32_t depth, void* data
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, generateMipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    m_internal_format = GL_RGBA8;
-    glTexImage3D(GL_TEXTURE_3D, 0, GL_RGBA8, width, height, depth, 0, GL_RGBA, data_type, data);
+    glTexImage3D(GL_TEXTURE_3D, 0, internal_format, width, height, depth, 0, format, data_type, data);
     GL_CHECK_ERROR;
 
     if (generateMipmaps)
@@ -98,7 +98,7 @@ void Texture3D::GenerateMipmap()
 void Texture3D::ReadTextureData(void* data, GLenum data_type)
 {
     ActivateTexture();
-    glGetTexImage(GL_TEXTURE_3D, 0, GL_RGBA, data_type, data);
+    glGetTexImage(GL_TEXTURE_3D, 0, m_format, data_type, data);
     GL_CHECK_ERROR;
 }
 

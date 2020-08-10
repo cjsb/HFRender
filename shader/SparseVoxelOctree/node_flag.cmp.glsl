@@ -5,8 +5,10 @@ uniform int u_numVoxelFrag;
 uniform int u_level;
 uniform int u_voxelDim;
 
-layout(rgb10_a2ui) uniform uimageBuffer u_voxelPos;
-layout(r32ui) uniform uimageBuffer u_octreeIdx;
+layout(rgb10_a2ui) uniform uimageBuffer u_voxelListPos;
+layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
+
+#include "utils.glsl"
 
 void main()
 {
@@ -14,7 +16,7 @@ void main()
 	if (thxId >= u_numVoxelFrag)
 		return;
 
-	uvec3 umin, umax;
+	uvec3 umin;
 	uvec4 loc;
 	int childIdx = 0;
 	uint node, subnode;
@@ -22,23 +24,22 @@ void main()
 	bool bFlag = true;
 
 	//Get the voxel coordinate of voxel loaded by this thread
-	loc = imageLoad(u_voxelPos, int(thxId));
+	loc = imageLoad(u_voxelListPos, int(thxId));
 
 	//decide max and min coord for the root node
 	umin = uvec3(0, 0, 0);
-	umax = uvec3(voxelDim, voxelDim, voxelDim);
 
-	node = imageLoad(u_octreeIdx, childIdx).r;
+	node = imageLoad(u_octreeNodeIdx, childIdx).r;
 
 	for (int i = 0; i < u_level; ++i)
 	{
 		voxelDim /= 2;
-		if ((node & 0x80000000) == 0)
+		if ((node & NODE_MASK_CHILD) == 0)
 		{
 			bFlag = false;
 			break;
 		}
-		childIdx = int(node & 0x7FFFFFFF);  //mask out flag bit to get child idx
+		childIdx = int(node & NODE_MASK_INDEX);  //mask out flag bit to get child idx
 
 		subnode = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
 		subnode += 4 * clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
@@ -49,11 +50,11 @@ void main()
 		umin.y += voxelDim * clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
 		umin.z += voxelDim * clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
 
-		node = imageLoad(u_octreeIdx, childIdx).r;
+		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 	if (bFlag)
 	{
-		node |= 0x80000000; //set the most significant bit
-		imageStore(u_octreeIdx, childIdx, uvec4(node, 0, 0, 0));
+		node |= NODE_MASK_CHILD; //set the most significant bit
+		imageStore(u_octreeNodeIdx, childIdx, uvec4(node, 0, 0, 0));
 	}
 }
