@@ -25,6 +25,7 @@ public:
 	int height;
 	std::string project_path;
 	int voxelSize = 128;
+	int octreeLevel = 7;
 	int brickPoolDim = 70 * 3;
 
 private:

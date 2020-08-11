@@ -69,6 +69,7 @@ public:
 	Volume(glm::vec3 start, float stride, uint32_t width, uint32_t height, uint32_t depth, const MaterialPtr& material);
 	virtual void CommitRenderContext(ViewContext& view_context) override;
 	virtual void SetRenderEnable(bool enable) override;
+	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param)override {};
 private:
 	glm::vec3 m_start;
 	float m_stride;

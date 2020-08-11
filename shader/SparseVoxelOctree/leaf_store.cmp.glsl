@@ -4,8 +4,8 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 layout(rgb10_a2ui) uniform uimageBuffer u_octreeNodeBrickIdx;
 
-layout(r32ui) uniform uimage3D u_octreeBrickColor;
-layout(r32ui) uniform uimage3D u_octreeBrickNormal;
+layout(r32ui) uniform volatile uimage3D u_octreeBrickColor;
+layout(r32ui) uniform volatile uimage3D u_octreeBrickNormal;
 
 layout(rgb10_a2ui) uniform uimageBuffer u_voxelListPos;
 layout(rgba8) uniform imageBuffer u_voxelListColor;
@@ -19,7 +19,7 @@ uniform int u_numVoxelFrag;
 
 //UINT atomic running average method
 //From OpenGL Insight ch. 22
-void imageAtomicRGBA8Avg(vec4 val, ivec3 coord, layout(r32ui) uimage3D image)
+void imageAtomicRGBA8Avg(vec4 val, ivec3 coord, layout(r32ui) volatile uimage3D image)
 {
 	val.rgb *= 255.0;
 	val.a = 1;
@@ -47,35 +47,40 @@ void main()
 
 	uvec4 loc = imageLoad(u_voxelListPos, int(thxId));
 	int childIdx = 0;
-	uint node, subnode;
+	uint node;
+	ivec3 offset;
 
 	uint voxelDim = u_voxelDim;
 	uvec3 umin = uvec3(0, 0, 0);
 
+	node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	for (int i = 0; i < u_octreeLevel; ++i)
 	{
 		voxelDim /= 2;
-		node = imageLoad(u_octreeNodeIdx, childIdx).r;
-		int childBaseIdx = int(node & NODE_MASK_INDEX);//mask out flag bit to get child idx
-		if (childBaseIdx == 0)
+		childIdx = int(node & NODE_MASK_INDEX);  //mask out flag bit to get child idx
+		if (childIdx == 0)
 		{
 			break;
 		}
 
-		subnode = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
-		subnode += 4 * clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
-		subnode += 2 * clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
-		childIdx += int(subnode);
+		offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
+		offset.y = clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
+		offset.z = clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
 
-		umin.x += voxelDim * clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
-		umin.y += voxelDim * clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
-		umin.z += voxelDim * clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
+		childIdx += offset.x + 2 * offset.y + 4 * offset.z;
+		umin += voxelDim * offset;
 
-		node = imageLoad(u_octreeIdx, childIdx).r;
+		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 
+	//获取最后一层voxel（octreeLevel）在叶子节点中的offset
+	offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
+	offset.y = clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
+	offset.z = clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
+
 	uvec4 brick_idx = imageLoad(u_octreeNodeBrickIdx, childIdx);
-	ivec3 brick_coord = ivec3(brick_idx.xyz);
+	//store VoxelColors in brick corners
+	ivec3 brick_coord = ivec3(brick_idx.xyz) + 2 * offset;
 
 	vec4 color = imageLoad(u_voxelListColor, int(thxId));
 	vec4 normal = imageLoad(u_voxelListNormal, int(thxId));

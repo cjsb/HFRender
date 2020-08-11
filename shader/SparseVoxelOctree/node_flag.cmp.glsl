@@ -16,10 +16,11 @@ void main()
 	if (thxId >= u_numVoxelFrag)
 		return;
 
-	uvec3 umin;
+	uvec3 umin, umax;
 	uvec4 loc;
 	int childIdx = 0;
-	uint node, subnode;
+	uint node;
+	ivec3 offset;
 	uint voxelDim = u_voxelDim;
 	bool bFlag = true;
 
@@ -27,7 +28,8 @@ void main()
 	loc = imageLoad(u_voxelListPos, int(thxId));
 
 	//decide max and min coord for the root node
-	umin = uvec3(0, 0, 0);
+	umin = uvec3(0);
+	umax = uvec3(voxelDim);
 
 	node = imageLoad(u_octreeNodeIdx, childIdx).r;
 
@@ -41,20 +43,21 @@ void main()
 		}
 		childIdx = int(node & NODE_MASK_INDEX);  //mask out flag bit to get child idx
 
-		subnode = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
-		subnode += 4 * clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
-		subnode += 2 * clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
-		childIdx += int(subnode);
+		offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
+		offset.y = clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
+		offset.z = clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
 
-		umin.x += voxelDim * clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
-		umin.y += voxelDim * clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
-		umin.z += voxelDim * clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
+		childIdx += offset.x + 2 * offset.y + 4 * offset.z;
+		umin += voxelDim * offset;
+		umax = umin + uvec3(voxelDim);
 
 		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 	if (bFlag)
 	{
-		node |= NODE_MASK_CHILD; //set the most significant bit
+		uvec3 center = (umin + umax) / 2;
+		uint cetnerU = vec3ToUintXYZ10(center);
+		node = cetnerU | NODE_MASK_CHILD; //set the most significant bit and center pos
 		imageStore(u_octreeNodeIdx, childIdx, uvec4(node, 0, 0, 0));
 	}
 }

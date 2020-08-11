@@ -3,7 +3,7 @@ layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 uniform int u_start;
 uniform int u_allocStart;
-uniform int u_num;
+uniform int u_numNode;
 
 layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 
@@ -16,7 +16,7 @@ void main()
 {
 	uint offset;
 	uint thxId = gl_GlobalInvocationID.x;
-	if (thxId >= u_num)
+	if (thxId >= u_numNode)
 		return;
 
 	//get child pointer

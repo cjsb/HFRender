@@ -600,11 +600,11 @@ int main()
 
 	//render->Render();
 
-	//render->Voxelize();
+	render->Voxelize();
 	//render->RenderVoxel();
-	//render->VoxelConeTrace();
+	render->VoxelConeTrace();
 
-	render->BuildVoxelList();
-	render->BuildSVO();
-	render->RenderOctree();
+	//render->BuildVoxelList();
+	//render->BuildSVO();
+	//render->RenderOctree();
 }
