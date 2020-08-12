@@ -2,6 +2,7 @@
 #include <string>
 #include "vertex_buffer.h"
 #include "render_context.h"
+#include "tiny_obj_loader/tiny_obj_loader.h"
 
 struct Vertex
 {
@@ -16,12 +17,15 @@ public:
 	ModelData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices);
 	~ModelData();
 	void FillRenderContext(RenderContext* const render_context);
-
+	void SetMaterial(const tinyobj::material_t& material) { m_material = material; }
+	const tinyobj::material_t& GetMaterial() { return m_material; }
 private:
 	void CreateGraphicResources();
 
 	VertexBufferPtr m_vb;
 	VertexBufferPtr m_ib;
+	tinyobj::material_t m_material;
+
 	GLuint m_vao = 0;
 	uint32_t m_stride = 0;
 	uint32_t m_point_count = 0;
@@ -38,6 +42,7 @@ public:
 	virtual void CommitRenderContext(ViewContext& view_context) = 0;
 	virtual void SetRenderEnable(bool enable) = 0;
 	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param) = 0;
+	virtual void SetMaterial(const MaterialPtr& material) = 0;
 };
 typedef std::unique_ptr<IEntity> IEntityPtr;
 
@@ -45,11 +50,12 @@ class ModelEntity : public IEntity
 {
 public:
 	ModelEntity(const std::string& path, const glm::mat4& transform, const MaterialPtr& material);
+	ModelEntity(const ModelDataPtr& model_data, const glm::mat4& transform, const MaterialPtr& material);
 	virtual void CommitRenderContext(ViewContext& view_context) override;
 	virtual void SetRenderEnable(bool enable) override;
 	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param) override;
 
-	void SetMaterial(const MaterialPtr& material);
+	virtual void SetMaterial(const MaterialPtr& material) override;
 	const std::string& GetPath() const { return m_path; }
 	void SetModelData(const ModelDataPtr& model_data) { m_model_data = model_data; }
 	void ClearModelData();
@@ -70,6 +76,7 @@ public:
 	virtual void CommitRenderContext(ViewContext& view_context) override;
 	virtual void SetRenderEnable(bool enable) override;
 	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param)override {};
+	virtual void SetMaterial(const MaterialPtr& material) override {};
 private:
 	glm::vec3 m_start;
 	float m_stride;
@@ -92,12 +99,13 @@ public:
 	}
 
 	ModelDataPtr LoadModel(const std::string& path);
+	std::vector<ModelDataPtr> LoadModels(const std::string& path);
 	void ClearCache();
 	void ClearCache(const std::string& path);
 	void SetEnableErase(bool is_enable_erase_data) { m_is_enable_erase_data = is_enable_erase_data; }
 protected:
 	ModelLoader() {}
-	ModelDataPtr LoadMesh(const std::string& path);
+	std::vector<ModelDataPtr> LoadMesh(const std::string& path, const std::string& mtlPath = "");
 
 	std::unordered_map<std::string, ModelDataPtr> m_model_cache;
 	bool m_is_enable_erase_data = false;

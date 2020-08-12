@@ -43,8 +43,11 @@ void main()
 	uint idx = atomicCounterIncrement( u_voxelFragCount );
 	if( u_bStore == 1 )
 	{
-	   imageStore( u_voxelListPos, int(idx), texcoord);
-	   imageStore( u_voxelListColor, int(idx), vec4(u_Color,0));
-	   imageStore( u_voxelListNormal, int(idx), vec4(f_normal,0));
+		vec4 diffColor = vec4(u_Color, 1);
+		vec4 normal = vec4(normalize(f_normal) * 0.5 + 0.5, 1.0);
+
+		imageStore(u_voxelListPos, int(idx), texcoord);
+		imageStore(u_voxelListColor, int(idx), diffColor);
+		imageStore(u_voxelListNormal, int(idx), normal);
 	}
 }

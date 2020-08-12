@@ -34,7 +34,9 @@ set(SOURCE_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/helpers.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/automic_buffer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/svo_vct.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/light.cpp
 	${THIRD_PARTY_PATH}/src/glad/glad/glad.c
+	${THIRD_PARTY_PATH}/src/tiny_obj_loader/tiny_obj_loader.cpp
 	${IMGUI_FILES}
 )
 
@@ -54,6 +56,7 @@ set(HEADER_FILES
 	${CMAKE_CURRENT_SOURCE_DIR}/helpers.h
 	${CMAKE_CURRENT_SOURCE_DIR}/automic_buffer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/svo_vct.h
+	${CMAKE_CURRENT_SOURCE_DIR}/light.h
 )
 
 add_executable (${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})

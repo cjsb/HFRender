@@ -50,3 +50,24 @@ void World::UpdateMaterialParam(const ParamTable& param, const TextureParamTable
 		it.second->UpdateMaterialParam(param, texture_param, image_param);
 	}
 }
+
+void World::SetMaterial(const MaterialPtr& material)
+{
+	for (auto& it : m_entities)
+	{
+		it.second->SetMaterial(material);
+	}
+}
+
+void World::AddModelEntities(const std::string& path, const glm::mat4& transform, const std::string& name, const MaterialPtr& material)
+{
+	std::vector<ModelDataPtr> modelDatas = ModelLoader::Instance()->LoadModels(path);
+
+	int num = 0;
+	for (const auto& modelData : modelDatas)
+	{
+
+		ModelEntityPtr model_entity = std::make_unique<ModelEntity>(modelData, transform, material);
+		m_entities.emplace(name + "_" + std::to_string(num++), std::move(model_entity));
+	}	
+}

@@ -6,7 +6,7 @@ uniform int u_start;
 uniform int u_level;
 uniform int u_octreeLevel;
 
-uniform vec4 u_emptyColor = vec4(0);
+uniform vec4 u_emptyColor;
 
 layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 layout(rgb10_a2ui) uniform uimageBuffer u_octreeNodeBrickIdx;
@@ -28,11 +28,24 @@ void main()
 		return;
 	}
 
-	loadChildTile(chlidIdx);
-
-	vec4 color = mipmapIsotropic(ivec3(2, 2, 2));
-	uint color_v = convVec4ToRGBA8(color);
+	loadChildTile(int(chlidIdx));
 
 	uvec4 brick_idx = imageLoad(u_octreeNodeBrickIdx, u_start + int(thxId));
-	imageStore(u_octreeBrickValue, brick_idx + ivec3(1, 1, 1), uvec4(color_v, 0, 0, 0));
+	ivec3 brickAddress = ivec3(brick_idx.xyz);
+
+	for (int x = 0; x <= 4; x++)
+	{
+		for (int y = 0; y <= 4; y++)
+		{
+			for (int z = 0; z <= 4; z++)
+			{
+				ivec3 coord = ivec3(x, y, z);
+				vec4 color = mipmapIsotropic(coord);
+				uint color_v = convVec4ToRGBA8(color);
+
+				ivec3 loc = coord / 2;
+				imageStore(u_octreeBrickValue, brickAddress + loc, uvec4(color_v, 0, 0, 0));
+			}
+		}
+	}
 }

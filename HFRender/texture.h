@@ -28,6 +28,8 @@ class Texture2D:public ITexture
 {
 public:
 	Texture2D(uint32_t width, uint32_t height, void* data, GLuint data_type = GL_UNSIGNED_BYTE, bool generateMipmaps = false);
+	Texture2D(uint32_t width, uint32_t height, GLenum internal_format, GLenum format, GLenum warp,
+		void* data, GLuint data_type = GL_UNSIGNED_BYTE, bool generateMipmaps = false);
 
 	~Texture2D();
 

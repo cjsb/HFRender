@@ -13,7 +13,9 @@ void loadChildTile(int chlidIdx) {
 vec4 getColor(ivec3 pos) {
     ivec3 childPos = ivec3(round(vec3(pos) / 4.0));
     int offset = childPos.x + 2 * childPos.y + 4 * childPos.z;
-    if ((childIndices[offset] & NODE_MASK_INDEX) == 0 && u_level != u_octreeLevel - 2)
+    //if ((childIndices[offset] & NODE_MASK_INDEX) == 0 && u_level != u_octreeLevel - 2)
+    //    return u_emptyColor;
+    if ((childIndices[offset] & NODE_MASK_CHILD) == 0)
         return u_emptyColor;
 
     ivec3 localPos = pos - 2 * childPos;

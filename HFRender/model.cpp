@@ -86,6 +86,15 @@ ModelEntity::ModelEntity(const std::string& path, const glm::mat4& transform, co
 	}
 }
 
+ModelEntity::ModelEntity(const ModelDataPtr& model_data, const glm::mat4& transform, const MaterialPtr& material)
+{
+    m_rc.SetTransform(transform);
+    m_rc.SetMaterial(material);
+
+    m_model_data = model_data;
+    m_model_data->FillRenderContext(&m_rc);
+}
+
 void ModelEntity::SetMaterial(const MaterialPtr& material)
 {
 	m_material = material;
@@ -193,15 +202,20 @@ ModelDataPtr ModelLoader::LoadModel(const std::string& path)
 
     if (path.rfind(".obj") != std::string::npos)
     {
-        ModelDataPtr model = LoadMesh(path);
-        if (model)
+        std::vector<ModelDataPtr> models = LoadMesh(path);
+        if (!models.empty())
         {
-            m_model_cache[path] = model;
-            return model;
+            m_model_cache[path] = models[0];
+            return models[0];
         }
     }
 	
 	return ModelDataPtr();
+}
+
+std::vector<ModelDataPtr> ModelLoader::LoadModels(const std::string& path)
+{
+    return LoadMesh(path);
 }
 
 void ModelLoader::ClearCache()
@@ -221,123 +235,49 @@ void ModelLoader::ClearCache(const std::string& path)
 	}
 }
 
-ModelDataPtr ModelLoader::LoadMesh(const std::string& path)
+std::vector<ModelDataPtr> ModelLoader::LoadMesh(const std::string& path, const std::string& mtlPath)
 {
+    std::vector<ModelDataPtr> models;
+
     std::ifstream in(path, std::ios::in);
     if (in.fail())
     {
         std::cout << "obj file open failed: " << path << std::endl;
-        return ModelDataPtr();
+        return models;
     }
 
-    std::vector<glm::vec3> points;
-    std::vector<glm::vec2> uvs;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::ivec3> ids;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
 
-    while (!in.eof())
-    {
-        std::string line;
-        std::getline(in, line);
-        std::istringstream iss(line.c_str());
-        char trash;
-        if (!line.compare(0, 2, "v "))
-        {
-            iss >> trash;
-            glm::vec3 vec;
-            iss >> vec[0] >> vec[1] >> vec[2];
-            points.push_back(vec);
-        }
-        else if (!line.compare(0, 3, "vt "))
-        {
-            iss >> trash >> trash;
-            glm::vec3 vec;
-            int i = 0;
-            float v;
-            while (iss >> v)
-            {
-                vec[i++] = v;
-            }
-            if (i == 2)
-                vec[2] = 0;
-            uvs.push_back(vec);
-        }
-        else if (!line.compare(0, 3, "vn "))
-        {
-            iss >> trash >> trash;
-            glm::vec3 vec;
-            iss >> vec[0] >> vec[1] >> vec[2];
-            normals.push_back(vec);
-        }
-        else if (!line.compare(0, 2, "f "))
-        {
-            iss >> trash;
-            if (line.find("//") != std::string::npos)
-            {
-                for (size_t i = 0;i < 3;i++)
-                {
-                    glm::ivec3 id(0);
-                    iss >> id.x >> trash >> trash >> id.z;
-                    ids.push_back(id);
-                }
-            }
-            else
-            {
-                int count = std::count(line.begin(), line.end(), '/');
-                count /= 3;
-                if (count <= 2)
-                {
-                    for (size_t i = 0;i < 3;i++)
-                    {
-                        glm::ivec3 id(0);
-                        iss >> id.x;
-                        for (size_t j = 1;j <= count;j++)
-                        {
-                            iss >> trash >> id[j];
-                        }
-                        ids.push_back(id);
-                    }
-                }
-                else
-                {
-                    std::cout << "obj file is error: " << path << std::endl;
-                    return ModelDataPtr();
-                }
-            }
-        }
+    std::string err;
+    if (!tinyobj::LoadObj(shapes, materials, err, path.c_str(), mtlPath.c_str()) || shapes.size() == 0) {
+        std::cerr << "Failed to load object with path '" << path << "'. Error message:" << std::endl << err << std::endl;
+        return models;
     }
 
-    std::unordered_map<std::string, uint32_t> vtx_map;
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-    for (const auto& id : ids)
+    for (const auto& shape : shapes)
     {
-        std::string key = std::to_string(id.x) + "/" + std::to_string(id.y) + "/" + std::to_string(id.z);
-        auto it = vtx_map.find(key);
-        if (it != vtx_map.end())
+        int numVertex = shape.mesh.positions.size() / 3;
+
+        std::vector<Vertex> vertices;
+        vertices.resize(numVertex);
+        for (int i = 0; i < numVertex; i++)
         {
-            indices.push_back(it->second);
-        }
-        else
-        {
-            assert(id.x > 0);
             Vertex vertex;
-            vertex.position = points[id.x - 1];
-            if (id.y > 0)
-            {
-                vertex.uv = uvs[id.y - 1];
-            }
-            if (id.z > 0)
-            {
-                vertex.normal = normals[id.z - 1];
-            }
-            
-            vertices.push_back(vertex);
-            uint32_t cur_pos = vertices.size() - 1;
-            vtx_map[key] = cur_pos;
-            indices.push_back(cur_pos);
+            vertex.position = glm::vec3(shape.mesh.positions[i * 3], shape.mesh.positions[i * 3 + 1], shape.mesh.positions[i * 3 + 2]);
+            vertex.normal = glm::vec3(shape.mesh.normals[i * 3], shape.mesh.normals[i * 3 + 1], shape.mesh.normals[i * 3 + 2]);
+            vertex.uv = glm::vec2(shape.mesh.texcoords[i * 2], shape.mesh.texcoords[i * 2 + 1]);
+            vertices[i] = vertex;
         }
+        
+        std::vector<uint32_t> indices(shape.mesh.indices);
+        ModelDataPtr modelData = std::make_shared<ModelData>(vertices, indices);
+        if (!materials.empty())
+        {
+            modelData->SetMaterial(materials[shape.mesh.material_ids[0]]);
+        }
+        models.push_back(modelData);
     }
 
-    return std::make_shared<ModelData>(vertices, indices);
+    return models;
 }

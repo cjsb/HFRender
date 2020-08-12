@@ -26,7 +26,6 @@ void loadVoxelValues(ivec3 brickAddress) {
 	for (int i = 0; i < 8; ++i) {
 		uint val = imageLoad(u_octreeBrickValue, brickAddress + 2 * ivec3(childOffsets[i])).r;
 		voxelValues[i] = convRGBA8ToVec4(val);
-		voxelValues[i].w = 0;
 	}
 }
 

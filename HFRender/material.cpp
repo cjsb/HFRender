@@ -188,8 +188,8 @@ std::shared_ptr<Material> Material::GetVoxelListMaterial(glm::vec3 color)
 		{"u_Color", color},
 		{"u_bStore", 0}
 	};
-	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/voxelize_list.vert",
-		Config::Instance()->project_path + "shader/voxelize_list.frag",
-		Config::Instance()->project_path + "shader/voxelize_list.geom", std::move(params));
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/SparseVoxelOctree/voxelize_list.vert",
+		Config::Instance()->project_path + "shader/SparseVoxelOctree/voxelize_list.frag",
+		Config::Instance()->project_path + "shader/SparseVoxelOctree/voxelize_list.geom", std::move(params));
 	return material;
 }

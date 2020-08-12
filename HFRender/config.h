@@ -24,9 +24,10 @@ public:
 	int width;
 	int height;
 	std::string project_path;
-	int voxelSize = 128;
-	int octreeLevel = 7;
+	int voxelSize = 256;
+	int octreeLevel = 8;
 	int brickPoolDim = 70 * 3;
+	int shadowMapSize = 512;
 
 private:
 	Config() {}

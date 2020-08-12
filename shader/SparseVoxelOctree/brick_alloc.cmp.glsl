@@ -34,9 +34,9 @@ void main()
 
 		imageStore(u_octreeNodeBrickIdx, thxId, brickIdx);
 
-		uint clearColor = 0;
-		uint clearIrradiance = 0;
-		uint clearNormal = 0;
+		vec4 clearNormal = vec4(0.5, 0.5, 0.5, 0.0);
+		clearNormal.rgb *= 255.0;
+		uint clearNormal_v = convVec4ToRGBA8(clearNormal);
 		for (int x = 0; x < 3; x++)
 		{
 			for (int y = 0; y < 3; y++)
@@ -44,9 +44,9 @@ void main()
 				for (int z = 0; z < 3; z++)
 				{
 					ivec3 coord = ivec3(brickIdx.x + x, brickIdx.y + y, brickIdx.z + z);
-					imageStore(u_octreeBrickColor, coord, clearColor);
-					imageStore(u_octreeBrickNormal, coord, clearNormal);
-					imageStore(u_octreeBrickIrradiance, coord, clearIrradiance);
+					imageStore(u_octreeBrickColor, coord, uvec4(0));
+					imageStore(u_octreeBrickNormal, coord, uvec4(clearNormal_v, 0, 0, 0));
+					imageStore(u_octreeBrickIrradiance, coord, uvec4(0));
 				}
 			}
 		}
