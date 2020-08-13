@@ -12,7 +12,14 @@ public:
 
 	void SparseVoxelize(World& world);
 	void LightUpdate(World& world);
-	void RenderOctree();
+
+	const TextureBufferPtr& GetVoxelListPos() { return m_voxel_list_pos; }
+	const TextureBufferPtr& GetVoxelListColor() { return m_voxel_list_color; }
+	uint32_t GetVoxelListNum() { return m_numVoxelFrag; }
+
+	const TextureBufferPtr& GetOctreeNodeIdx() { return m_octree_node_idx; }
+	const TextureBufferPtr& GetOctreeNodeBrickIdx() { return m_octree_node_brick_idx; }
+	const Texture3DPtr& GetOctreeBrickColor() { return m_octree_brick_color; }
 
 private:
 	void BuildVoxelList(World& world);

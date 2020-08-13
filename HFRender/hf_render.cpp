@@ -2,6 +2,7 @@
 #include <ImGui/imgui_impl_glfw.h>
 #include <ImGui/imgui_impl_opengl3.h>
 #include "helpers.h"
+#include "stb_image/stb_image.h"
 
 const char* glsl_version = "#version 450 core";
 HFRender* HFRender::s_inst = new HFRender();
@@ -355,29 +356,230 @@ void HFRender::VoxelConeTrace()
 	}
 }
 
-void HFRender::BuildSVO()
+void HFRender::LoadWorld()
 {
-	int voxelSize = Config::Instance()->voxelSize;
+	std::vector<ModelDataPtr> modelDatas = ModelLoader::Instance()->LoadModels(
+		Config::Instance()->project_path + "resource/model/sponza/sponza.obj",
+		Config::Instance()->project_path + "resource/model/sponza/");
 
-	MaterialPtr bunny_material = Material::GetVoxelListMaterial(glm::vec3(1, 1, 1));
-	Transform bunny_transform(glm::vec3(0, -0.50f, 0), glm::mat4(1), glm::vec3(0.5));
-	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/bunny.obj", bunny_transform.GetMatrix(), "bunny", bunny_material);
+	AABB bbox;
+	for (int i = 0; i < modelDatas.size(); i++)
+	{
+		const AABB& aabb = modelDatas[i]->GetBoundingBox();
+		bbox.Merge(aabb);
+		m_world.AddModelEntity(modelDatas[i], glm::mat4(1), "model_" + std::to_string(i), MaterialPtr());
+	}
 
-	Transform cornell_trans(glm::vec3(0), glm::mat4(1), glm::vec3(0.99));
-	MaterialPtr cornell_left_material = Material::GetVoxelListMaterial(glm::vec3(1, 0, 0));
-	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/left_wall.obj", cornell_trans.GetMatrix(), "left_wall", cornell_left_material);
-
-	MaterialPtr cornell_right_material = Material::GetVoxelListMaterial(glm::vec3(0, 0, 1));
-	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/right_wall.obj", cornell_trans.GetMatrix(), "right_wall", cornell_right_material);
-
-	MaterialPtr cornell_other_material = Material::GetVoxelListMaterial(glm::vec3(1, 1, 1));
-	m_voxel_world.AddModelEntity(Config::Instance()->project_path + "resource/model/floor_roof.obj", cornell_trans.GetMatrix(), "floor_roof", cornell_other_material);
-
-	m_svo_vct = std::make_shared<SVO_VCT>();
-	m_svo_vct->SparseVoxelize(m_voxel_world);
-	m_svo_vct->LightUpdate(m_voxel_world);
+	glm::vec3 center = (bbox.mi + bbox.ma) * 0.5f;
+	float half = bbox.half.x;
+	glm::mat4 orth = glm::ortho(center.x - half, center.x + half, center.y - half, center.y + half, center.z - half, center.z + half);
+	m_world.UpdateTransform(orth);
 }
 
+void HFRender::BuildSVO()
+{
+	m_svo_vct = std::make_shared<SVO_VCT>();
+	m_svo_vct->SparseVoxelize(m_world);
+	//m_svo_vct->LightUpdate(m_world);
+}
+
+void HFRender::RenderWorld()
+{
+	std::vector<ModelDataPtr> modelDatas = ModelLoader::Instance()->LoadModels(
+		Config::Instance()->project_path + "resource/model/sponza/sponza.obj",
+		Config::Instance()->project_path + "resource/model/sponza/");
+
+	AABB bbox;
+	for (int i = 0; i < modelDatas.size(); i++)
+	{
+		const TinyobjMaterialPtr& mat_t = modelDatas[i]->GetMaterial();
+		const AABB& aabb = modelDatas[i]->GetBoundingBox();
+		bbox.Merge(aabb);
+
+		ParamTable params =
+		{
+			{"light.direction", glm::normalize(glm::vec3(-1,-1,-1))},
+			{"light.color", glm::vec3(1)}
+		};
+		TextureParamTable texture_param;
+		if (mat_t)
+		{
+			if (mat_t->diffuse_texname.empty())
+			{
+				params["u_diffuseColor"] = glm::vec3(mat_t->diffuse[0], mat_t->diffuse[1], mat_t->diffuse[2]);
+				params["u_useMap"] = false;
+			}
+			else
+			{
+				params["u_useMap"] = true;
+				int width, height, nrChannels;
+				std::string image_path = Config::Instance()->project_path + "resource/model/sponza/" + mat_t->diffuse_texname;
+				unsigned char* data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
+				Texture2DPtr diffuseMap;
+				if (nrChannels == 3)
+				{
+					diffuseMap = std::make_shared<Texture2D>(width, height, data);
+				}
+				else if (nrChannels == 4)
+				{
+					diffuseMap = std::make_shared<Texture2D>(width, height, GL_RGBA8, GL_RGBA, GL_REPEAT, data, GL_UNSIGNED_BYTE);
+				}
+				texture_param["u_diffuseMap"] = diffuseMap;
+			}
+		}
+		else
+		{
+			params["u_diffuseColor"] = glm::vec3(0.5);
+			params["u_useMap"] = false;
+			std::cout << "mat is null" << std::endl;
+		}
+
+		MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/world_visualization.vert",
+			Config::Instance()->project_path + "shader/Visualization/world_visualization.frag", "", 
+			std::move(params), std::move(texture_param));
+		m_world.AddModelEntity(modelDatas[i], glm::mat4(1), "model_" + std::to_string(i), material);
+	}
+
+	glm::vec3 center = (bbox.mi + bbox.ma) * 0.5f;
+	float half = bbox.half.x;
+	glm::mat4 orth = glm::ortho(center.x - half, center.x + half, center.y - half, center.y + half, center.z - half, center.z + half);
+	m_world.UpdateTransform(orth);
+
+	m_camera.SetPosition(glm::vec3(0, 0, 0));
+	m_camera.SetForward(glm::vec3(-1, 0, 0));
+
+	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
+
+	ViewContext vc;
+	vc.SetDepthStates(true, true, GL_LESS);
+	m_world.CommitRenderContext(vc);
+
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
+		ProcessInput();
+
+		m_camera.FillViewContext(vc);
+		vc.FlushRenderContext(false);
+
+		glfwSwapBuffers(m_window);
+	}
+}
+
+void HFRender::RenderVoxelList()
+{
+	int voxelSize = Config::Instance()->voxelSize;
+	int width = Config::Instance()->width;
+	int height = Config::Instance()->height;
+
+	const TextureBufferPtr& voxelListPos = m_svo_vct->GetVoxelListPos();
+	const TextureBufferPtr& voxelListColor = m_svo_vct->GetVoxelListColor();
+	uint32_t numFrag = m_svo_vct->GetVoxelListNum();
+
+	ParamTable params = {
+		{"u_pointSize", float(height) / float(voxelSize)},
+		{"u_voxelSize", voxelSize}
+	};
+
+	voxelListPos->SetUnit(0);
+	voxelListColor->SetUnit(1);
+	TextureParamTable image_param = {
+		{"u_voxelListPos", voxelListPos},
+		{"u_voxelListColor", voxelListColor}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/voxel_list_visualization.vert",
+		Config::Instance()->project_path + "shader/Visualization/voxel_list_visualization.frag", "", std::move(params), {}, std::move(image_param));
+
+	PointListPtr model = std::make_unique<PointList>(numFrag, material);
+	m_world.AddEntity("PointList", std::move(model));
+
+	m_camera.SetPosition(glm::vec3(0, 0, 0));
+	m_camera.SetForward(glm::vec3(1, 0, 0));
+
+	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
+
+	ViewContext volume_vc;
+	volume_vc.SetDepthStates(true, true, GL_LESS);
+	m_world.CommitRenderContext(volume_vc, "PointList");
+
+	glEnable(GL_PROGRAM_POINT_SIZE);
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
+		ProcessInput();
+
+		m_camera.FillViewContext(volume_vc);
+		volume_vc.FlushRenderContext(false);
+
+		glfwSwapBuffers(m_window);
+	}
+}
+
+void HFRender::RenderOctree()
+{
+	int voxelSize = Config::Instance()->voxelSize;
+	int width = Config::Instance()->width;
+	int height = Config::Instance()->height;
+	int octreeLevel = Config::Instance()->octreeLevel;
+
+	const TextureBufferPtr& voxelListPos = m_svo_vct->GetVoxelListPos();
+	uint32_t numFrag = m_svo_vct->GetVoxelListNum();
+
+	const TextureBufferPtr& octree_node_idx = m_svo_vct->GetOctreeNodeIdx();
+	const TextureBufferPtr& octree_node_brick_idx = m_svo_vct->GetOctreeNodeBrickIdx();
+	const Texture3DPtr& octree_brick_color = m_svo_vct->GetOctreeBrickColor();
+
+	ParamTable params = {
+		{"u_pointSize", float(height) / float(voxelSize)},
+		{"u_voxelDim", voxelSize},
+		{"u_level", octreeLevel - 3}
+	};
+
+	voxelListPos->SetUnit(0);
+	octree_node_idx->SetUnit(1);
+	octree_node_brick_idx->SetUnit(2);
+	octree_brick_color->SetUnit(3);
+
+	TextureParamTable image_param = {
+		{"u_voxelListPos", voxelListPos},
+		{"u_octreeNodeIdx", octree_node_idx},
+		{"u_octreeNodeBrickIdx", octree_node_brick_idx},
+		{"u_octreeBrickColor", octree_brick_color}
+	};
+
+	/*MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_visualization.vert",
+		Config::Instance()->project_path + "shader/Visualization/octree_visualization.frag", "", std::move(params), {}, std::move(image_param));
+
+	VolumePtr volume = std::make_unique<Volume>(glm::vec3(0), 1.0f / voxelSize, voxelSize, voxelSize, voxelSize, material);
+	m_world.AddEntity("octree_visualization", std::move(volume));*/
+
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_voxel_visualization.vert",
+		Config::Instance()->project_path + "shader/Visualization/octree_voxel_visualization.frag", "", std::move(params), {}, std::move(image_param));
+
+	PointListPtr model = std::make_unique<PointList>(numFrag, material);
+	m_world.AddEntity("octree_visualization", std::move(model));
+
+	m_camera.SetPosition(glm::vec3(0, 0, 0));
+	m_camera.SetForward(glm::vec3(1, 0, 0));
+
+	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
+
+	ViewContext volume_vc;
+	volume_vc.SetDepthStates(true, true, GL_LESS);
+	m_world.CommitRenderContext(volume_vc, "octree_visualization");
+
+	glEnable(GL_PROGRAM_POINT_SIZE);
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
+		ProcessInput();
+
+		m_camera.FillViewContext(volume_vc);
+		volume_vc.FlushRenderContext(false);
+
+		glfwSwapBuffers(m_window);
+	}
+}
 
 int main()
 {
@@ -389,11 +591,14 @@ int main()
 
 	//render->Render();
 
-	render->Voxelize();
+	//render->Voxelize();
 	//render->RenderVoxel();
-	render->VoxelConeTrace();
+	//render->VoxelConeTrace();
 
-	//render->BuildVoxelList();
-	//render->BuildSVO();
-	//render->RenderOctree();
+	//render->RenderWorld();
+
+	render->LoadWorld();
+	render->BuildSVO();
+	//render->RenderVoxelList();
+	render->RenderOctree();
 }

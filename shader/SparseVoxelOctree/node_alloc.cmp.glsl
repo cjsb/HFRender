@@ -10,7 +10,8 @@ layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 //atomic counter 
 layout(binding = 0, offset = 0) uniform atomic_uint u_allocCount;
 
-#include "utils.glsl"
+#define NODE_MASK_CHILD 0x80000000
+#define NODE_MASK_INDEX 0x7FFFFFFF
 
 void main()
 {

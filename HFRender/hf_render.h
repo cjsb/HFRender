@@ -23,11 +23,16 @@ public:
 	void Destroy();
 
 	bool Render();
+	void RenderWorld();
+
 	void Voxelize();
 	void RenderVoxel();
 	void VoxelConeTrace();
 
+	void LoadWorld();
 	void BuildSVO();
+	void RenderVoxelList();
+	void RenderOctree();
 
 private:
 	HFRender() {}

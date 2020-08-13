@@ -29,6 +29,12 @@ void World::AddModelEntity(const std::string& path, const glm::mat4& transform, 
 	m_entities.emplace(name, std::move(model_entity));
 }
 
+void World::AddModelEntity(const ModelDataPtr& modelData, const glm::mat4& transform, const std::string& name, const MaterialPtr& material)
+{
+	ModelEntityPtr model_entity = std::make_unique<ModelEntity>(modelData, transform, material);
+	m_entities.emplace(name, std::move(model_entity));
+}
+
 void World::AddEntity(const std::string& name, IEntityPtr&& entity)
 {
 	m_entities.emplace(name, std::move(entity));
@@ -59,15 +65,10 @@ void World::SetMaterial(const MaterialPtr& material)
 	}
 }
 
-void World::AddModelEntities(const std::string& path, const glm::mat4& transform, const std::string& name, const MaterialPtr& material)
+void World::UpdateTransform(const glm::mat4& transform)
 {
-	std::vector<ModelDataPtr> modelDatas = ModelLoader::Instance()->LoadModels(path);
-
-	int num = 0;
-	for (const auto& modelData : modelDatas)
+	for (auto& it : m_entities)
 	{
-
-		ModelEntityPtr model_entity = std::make_unique<ModelEntity>(modelData, transform, material);
-		m_entities.emplace(name + "_" + std::to_string(num++), std::move(model_entity));
-	}	
+		it.second->SetTransform(transform);
+	}
 }

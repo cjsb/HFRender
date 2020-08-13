@@ -4,9 +4,11 @@ layout ( triangle_strip, max_vertices = 3 ) out;
 
 in vec3 v_vertex[];
 in vec3 v_normal[];
+in vec2 v_uv[];
 
 out vec3 f_normal;
 out vec3 f_pos;
+out vec2 f_uv;
 
 flat out int f_axis;   //indicate which axis the projection uses
 flat out vec4 f_AABB;
@@ -85,16 +87,19 @@ void main()
 	gl_Position = pos[0];
 	f_pos = pos[0].xyz;
 	f_normal = v_normal[0];
+	f_uv = v_uv[0];
 	EmitVertex();
 
 	gl_Position = pos[1];
 	f_pos = pos[1].xyz;
 	f_normal = v_normal[1];
+	f_uv = v_uv[1];
 	EmitVertex();
 
 	gl_Position = pos[2];
 	f_pos = pos[2].xyz;
 	f_normal = v_normal[2];
+	f_uv = v_uv[2];
 	EmitVertex();
 
 	EndPrimitive();

@@ -13,7 +13,13 @@ layout(r32ui) uniform uimage3D u_octreeBrickIrradiance;
 //atomic counter 
 layout(binding = 0, offset = 0) uniform atomic_uint u_allocCount;
 
-#include "utils.glsl"
+#define NODE_MASK_CHILD 0x80000000
+#define NODE_MASK_INDEX 0x7FFFFFFF
+
+uint convVec4ToRGBA8(in vec4 val)
+{
+	return (uint(val.w) & 0x000000FF) << 24U | (uint(val.z) & 0x000000FF) << 16U | (uint(val.y) & 0x000000FF) << 8U | (uint(val.x) & 0x000000FF);
+}
 
 void main()
 {
@@ -22,8 +28,8 @@ void main()
 		return;
 
 	int brickDim = u_brickPoolDim / 3;
-	uint childIdx = imageLoad(u_octreeNodeIdx, thxId).r;
-	if ((childIdx & NODE_MASK_CHILD) != 0)
+	uint nodeIdx = imageLoad(u_octreeNodeIdx, int(thxId)).r;
+	if ((nodeIdx & NODE_MASK_CHILD) != 0)
 	{
 		uint offset = atomicCounterIncrement(u_allocCount);
 		uvec4 brickIdx = uvec4(0);
@@ -32,7 +38,7 @@ void main()
 		brickIdx.z = offset / (brickDim * brickDim);
 		brickIdx *= 3;
 
-		imageStore(u_octreeNodeBrickIdx, thxId, brickIdx);
+		imageStore(u_octreeNodeBrickIdx, int(thxId), brickIdx);
 
 		vec4 clearNormal = vec4(0.5, 0.5, 0.5, 0.0);
 		clearNormal.rgb *= 255.0;

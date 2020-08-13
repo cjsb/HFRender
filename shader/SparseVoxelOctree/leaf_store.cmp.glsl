@@ -15,7 +15,46 @@ uniform int u_voxelDim;
 uniform int u_octreeLevel;
 uniform int u_numVoxelFrag;
 
-#include "utils.glsl"
+#define NODE_MASK_CHILD 0x80000000
+#define NODE_MASK_INDEX 0x7FFFFFFF
+
+#define AXIS_X 0
+#define AXIS_Y 1
+#define AXIS_Z 2
+
+const uvec3 childOffsets[8] = {
+  uvec3(0, 0, 0),
+  uvec3(1, 0, 0),
+  uvec3(0, 1, 0),
+  uvec3(1, 1, 0),
+  uvec3(0, 0, 1),
+  uvec3(1, 0, 1),
+  uvec3(0, 1, 1),
+  uvec3(1, 1, 1)
+};
+
+uint vec3ToUintXYZ10(uvec3 val) {
+	return (uint(val.z) & 0x000003FF) << 20U
+		| (uint(val.y) & 0x000003FF) << 10U
+		| (uint(val.x) & 0x000003FF);
+}
+
+uvec3 uintXYZ10ToVec3(uint val) {
+	return uvec3(uint((val & 0x000003FF)),
+		uint((val & 0x000FFC00) >> 10U),
+		uint((val & 0x3FF00000) >> 20U));
+}
+
+vec4 convRGBA8ToVec4(in uint val)
+{
+	return vec4(float((val & 0x000000FF)), float((val & 0x0000FF00) >> 8U),
+		float((val & 0x00FF0000) >> 16U), float((val & 0xFF000000) >> 24U));
+}
+
+uint convVec4ToRGBA8(in vec4 val)
+{
+	return (uint(val.w) & 0x000000FF) << 24U | (uint(val.z) & 0x000000FF) << 16U | (uint(val.y) & 0x000000FF) << 8U | (uint(val.x) & 0x000000FF);
+}
 
 //UINT atomic running average method
 //From OpenGL Insight ch. 22
@@ -49,20 +88,22 @@ void main()
 	int childIdx = 0;
 	uint node;
 	ivec3 offset;
+	bool bFlag = true;
 
 	uint voxelDim = u_voxelDim;
 	uvec3 umin = uvec3(0, 0, 0);
 
 	node = imageLoad(u_octreeNodeIdx, childIdx).r;
-	for (int i = 0; i < u_octreeLevel; ++i)
+	//这里需要设置成最后一层 u_octreeLevel-1
+	for (int i = 0; i < u_octreeLevel - 1; ++i)
 	{
 		voxelDim /= 2;
-		int nextChildIdx = int(node & NODE_MASK_INDEX);  //mask out flag bit to get child idx
-		if (nextChildIdx == 0)
+		if ((node & NODE_MASK_CHILD) == 0)
 		{
+			bFlag = false;
 			break;
 		}
-		childIdx = nextChildIdx;
+		childIdx = int(node & NODE_MASK_INDEX);  //mask out flag bit to get child idx
 
 		offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
 		offset.y = clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
@@ -74,11 +115,13 @@ void main()
 		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 
-	if ((node & NODE_MASK_CHILD) == 0)
+	if (!bFlag)
 	{
-		//正确的话是不会执行到这里的
 		return;
 	}
+
+	//得到最后一层的半径
+	voxelDim /= 2;
 
 	//获取最后一层voxel（octreeLevel）在叶子节点中的offset
 	offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);

@@ -4,6 +4,7 @@ flat in vec4 f_AABB;
 
 in vec3 f_normal;
 in vec3 f_pos;
+in vec2 f_uv;
 
 //atomic counter 
 layout (binding = 0, offset = 0) uniform atomic_uint u_voxelFragCount;
@@ -12,7 +13,7 @@ layout(rgb10_a2ui) uniform uimageBuffer u_voxelListPos;
 layout(rgba8) uniform imageBuffer u_voxelListColor;
 layout(rgba8) uniform imageBuffer u_voxelListNormal;
 
-uniform vec3 u_Color;
+uniform sampler2D u_diffuseMap;
 uniform int u_voxelSize;
 uniform int u_bStore; //0 for counting the number of voxel fragments
                       //1 for storing voxel fragments
@@ -43,7 +44,7 @@ void main()
 	uint idx = atomicCounterIncrement( u_voxelFragCount );
 	if( u_bStore == 1 )
 	{
-		vec4 diffColor = vec4(u_Color, 1);
+		vec4 diffColor = texture(u_diffuseMap, f_uv);
 		vec4 normal = vec4(normalize(f_normal) * 0.5 + 0.5, 1.0);
 
 		imageStore(u_voxelListPos, int(idx), texcoord);

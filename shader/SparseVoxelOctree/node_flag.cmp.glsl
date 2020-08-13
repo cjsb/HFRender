@@ -8,7 +8,14 @@ uniform int u_voxelDim;
 layout(rgb10_a2ui) uniform uimageBuffer u_voxelListPos;
 layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 
-#include "utils.glsl"
+#define NODE_MASK_CHILD 0x80000000
+#define NODE_MASK_INDEX 0x7FFFFFFF
+
+uint vec3ToUintXYZ10(uvec3 val) {
+	return (uint(val.z) & 0x000003FF) << 20U
+		| (uint(val.y) & 0x000003FF) << 10U
+		| (uint(val.x) & 0x000003FF);
+}
 
 void main()
 {

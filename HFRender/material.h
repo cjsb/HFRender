@@ -27,6 +27,13 @@ public:
 		m_texture_param(std::move(texture_param)),
 		m_image_param(std::move(image_param))
 	{}
+	Material(const Material& other) :
+		m_shader(other.m_shader),
+		m_params(other.m_params),
+		m_texture_param(other.m_texture_param),
+		m_image_param(other.m_image_param)
+	{}
+
 	void SetShader(const ShaderPtr& shader) { m_shader = shader; }
 	const ShaderPtr& GetShader() const { return m_shader; }
 	void SetParam(const std::string& name, std::any value) { m_params[name] = value; }

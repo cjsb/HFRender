@@ -101,6 +101,12 @@ void ModelEntity::SetMaterial(const MaterialPtr& material)
 	m_rc.SetMaterial(material);
 }
 
+void ModelEntity::SetTransform(const glm::mat4& transform)
+{
+    m_transform = transform;
+    m_rc.SetTransform(m_transform);
+}
+
 void ModelEntity::CommitRenderContext(ViewContext& view_context)
 {
 	if (m_model_data && (m_flag & 0x00000001))
@@ -190,6 +196,43 @@ void Volume::SetRenderEnable(bool enable)
     }
 }
 
+PointList::PointList(uint32_t pointNum, const MaterialPtr& material) :m_pointNum(pointNum)
+{
+    std::vector<Vertex> vertices;
+    for (int i = 0; i < pointNum; i++)
+    {
+        Vertex vertex;
+        vertex.position = glm::vec3(i);
+        vertices.emplace_back(vertex);
+    }
+
+    m_rc.SetTransform(glm::mat4(1));
+    m_rc.SetMaterial(material);
+    m_rc.SetRenderMode(GL_POINTS);
+    m_model_data = std::make_shared<ModelData>(vertices, std::vector<uint32_t>());
+    m_model_data->FillRenderContext(&m_rc);
+}
+
+void PointList::CommitRenderContext(ViewContext& view_context)
+{
+    if (m_model_data && (m_flag & 0x00000001))
+    {
+        view_context.AddRenderContext(&m_rc);
+    }
+}
+
+void PointList::SetRenderEnable(bool enable)
+{
+    if (enable)
+    {
+        m_flag |= 0x00000001;
+    }
+    else
+    {
+        m_flag &= (~0x00000001);
+    }
+}
+
 ModelLoader* ModelLoader::s_inst = new ModelLoader();
 
 ModelDataPtr ModelLoader::LoadModel(const std::string& path)
@@ -213,9 +256,9 @@ ModelDataPtr ModelLoader::LoadModel(const std::string& path)
 	return ModelDataPtr();
 }
 
-std::vector<ModelDataPtr> ModelLoader::LoadModels(const std::string& path)
+std::vector<ModelDataPtr> ModelLoader::LoadModels(const std::string& path, const std::string& mtlPath)
 {
-    return LoadMesh(path);
+    return LoadMesh(path, mtlPath);
 }
 
 void ModelLoader::ClearCache()
@@ -239,13 +282,6 @@ std::vector<ModelDataPtr> ModelLoader::LoadMesh(const std::string& path, const s
 {
     std::vector<ModelDataPtr> models;
 
-    std::ifstream in(path, std::ios::in);
-    if (in.fail())
-    {
-        std::cout << "obj file open failed: " << path << std::endl;
-        return models;
-    }
-
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
 
@@ -255,10 +291,17 @@ std::vector<ModelDataPtr> ModelLoader::LoadMesh(const std::string& path, const s
         return models;
     }
 
+    std::vector<TinyobjMaterialPtr> materialPtrs;
+    for (const auto& material : materials)
+    {
+        materialPtrs.emplace_back(std::make_shared<tinyobj::material_t>(material));
+    }
+
     for (const auto& shape : shapes)
     {
         int numVertex = shape.mesh.positions.size() / 3;
 
+        AABB aabb;
         std::vector<Vertex> vertices;
         vertices.resize(numVertex);
         for (int i = 0; i < numVertex; i++)
@@ -268,13 +311,15 @@ std::vector<ModelDataPtr> ModelLoader::LoadMesh(const std::string& path, const s
             vertex.normal = glm::vec3(shape.mesh.normals[i * 3], shape.mesh.normals[i * 3 + 1], shape.mesh.normals[i * 3 + 2]);
             vertex.uv = glm::vec2(shape.mesh.texcoords[i * 2], shape.mesh.texcoords[i * 2 + 1]);
             vertices[i] = vertex;
+            aabb.Merge(vertex.position);
         }
         
         std::vector<uint32_t> indices(shape.mesh.indices);
         ModelDataPtr modelData = std::make_shared<ModelData>(vertices, indices);
-        if (!materials.empty())
+        modelData->SetBoundingBox(aabb);
+        if (!materials.empty() && shape.mesh.material_ids[0] >= 0)
         {
-            modelData->SetMaterial(materials[shape.mesh.material_ids[0]]);
+            modelData->SetMaterial(materialPtrs[shape.mesh.material_ids[0]]);
         }
         models.push_back(modelData);
     }

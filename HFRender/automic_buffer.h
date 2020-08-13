@@ -14,7 +14,6 @@ public:
 	void Sync();
 protected:
 	GLuint m_id;
-	GLuint m_val;
 };
 
 typedef std::shared_ptr<AutomicBuffer> AutomicBufferPtr;

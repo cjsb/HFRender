@@ -32,10 +32,11 @@ void AutomicBuffer::Bind()
 
 GLuint AutomicBuffer::GetVal()
 {
+    GLuint val;
     glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, m_id);
-    glGetBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), &m_val);
+    glGetBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), &val);
     GL_CHECK_ERROR;
-    return m_val;
+    return val;
 }
 
 void AutomicBuffer::SetVal(GLuint val)
@@ -43,7 +44,6 @@ void AutomicBuffer::SetVal(GLuint val)
     glBindBuffer(GL_ATOMIC_COUNTER_BUFFER, m_id);
     glBufferSubData(GL_ATOMIC_COUNTER_BUFFER, 0, sizeof(GLuint), &val);
     GL_CHECK_ERROR;
-    m_val = val;
 }
 
 void AutomicBuffer::Sync()

@@ -1,23 +1,25 @@
 #include "svo_vct.h"
 #include "config.h"
 #include "camera.h"
+#include "stb_image/stb_image.h"
 
 SVO_VCT::SVO_VCT()
 {
 	m_voxelSize = Config::Instance()->voxelSize;
 	m_octreeLevel = log2f(m_voxelSize);
-	m_brickPoolDim = Config::Instance()->brickPoolDim;
 	m_shadowMapSize = Config::Instance()->shadowMapSize;
 
 	m_automic_count = std::make_shared<AutomicBuffer>(0);
 
 	m_voxel_FBO = std::make_shared<Framebuffer>();
 	m_voxel_FBO->AttachColorBuffer(std::make_unique<RenderSurface>(m_voxelSize, m_voxelSize, GL_RGB));
+	assert(m_voxel_FBO->CheckStatus());
 
 	m_shadow_map = std::make_shared<Texture2D>(m_shadowMapSize, m_shadowMapSize, GL_RGB32F, GL_RGB, GL_CLAMP_TO_EDGE, nullptr, GL_FLOAT);
 	m_shadow_map_FBO = std::make_shared<Framebuffer>();
 	m_shadow_map_FBO->AttachColorTexture(m_shadow_map);
 	m_shadow_map_FBO->SetClearColor(glm::vec4(0, 0, 0, 1));
+	assert(m_shadow_map_FBO->CheckStatus());
 }
 
 SVO_VCT::~SVO_VCT()
@@ -28,18 +30,22 @@ SVO_VCT::~SVO_VCT()
 void SVO_VCT::SparseVoxelize(World& world)
 {
 	BuildVoxelList(world);
+	//return;
 
 	BuildOctree();
 
 	AllocBrick();
 
 	WriteLeafNode();
+	//return;
 
 	SpreadLeafBrick(m_octree_brick_color);
 	SpreadLeafBrick(m_octree_brick_normal);
+	//return;
 
 	BorderTransfer(m_octreeLevel - 1, m_octree_brick_color);
 	BorderTransfer(m_octreeLevel - 1, m_octree_brick_normal);
+	//return;
 
 	for (int level = m_octreeLevel - 2; level >= 0; level--)
 	{
@@ -73,7 +79,61 @@ void SVO_VCT::LightUpdate(World& world)
 
 void SVO_VCT::BuildVoxelList(World& world)
 {
-	m_automic_count->BindBase(0);
+	std::cout << "BuildVoxelList" << std::endl;
+
+	glm::mat4 orth = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f, -1.0f, 1.0f);
+	Camera camera;
+	camera.SetPosition(glm::vec3(0));
+
+	camera.SetForward(glm::vec3(-1, 0, 0));
+	glm::mat4 vpX = orth * camera.GetViewMatrix();
+
+	camera.SetForward(glm::vec3(0, -1, 0));
+	glm::mat4 vpY = orth * camera.GetViewMatrix();
+
+	camera.SetForward(glm::vec3(0, 0, -1));
+	glm::mat4 vpZ = orth * camera.GetViewMatrix();
+
+	const std::unordered_map<std::string, IEntityPtr>& entities = world.GetEntities();
+	for (auto& it : entities)
+	{
+		ModelEntity* modelEntity = dynamic_cast<ModelEntity*>(it.second.get());
+		const ModelDataPtr& modelData = modelEntity->GetModelData();
+		const TinyobjMaterialPtr& mat_t = modelData->GetMaterial();
+
+		ParamTable params = {
+			{"u_VPx", vpX},
+			{"u_VPy", vpY},
+			{"u_VPz", vpZ},
+			{"u_voxelSize", Config::Instance()->voxelSize},
+			{"u_bStore", 0}
+		};
+
+		int width, height, nrChannels;
+		std::string image_path = Config::Instance()->project_path + "resource/model/sponza/" + mat_t->diffuse_texname;
+		unsigned char* data = stbi_load(image_path.c_str(), &width, &height, &nrChannels, 0);
+		Texture2DPtr diffuseMap;
+		if (nrChannels == 3)
+		{
+			diffuseMap = std::make_shared<Texture2D>(width, height, data);
+		}
+		else if (nrChannels == 4)
+		{
+			diffuseMap = std::make_shared<Texture2D>(width, height, GL_RGBA8, GL_RGBA, GL_REPEAT, data, GL_UNSIGNED_BYTE);
+		}
+		else
+		{
+			assert(0);
+		}
+		TextureParamTable texture_param = {
+			{"u_diffuseMap", diffuseMap}
+		};
+
+		MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/SparseVoxelOctree/voxelize_list.vert",
+			Config::Instance()->project_path + "shader/SparseVoxelOctree/voxelize_list.frag",
+			Config::Instance()->project_path + "shader/SparseVoxelOctree/voxelize_list.geom", std::move(params), std::move(texture_param));
+		it.second->SetMaterial(material);
+	}
 
 	ViewContext voxel_vc;
 	voxel_vc.SetColorMask(glm::bvec4(false));
@@ -84,12 +144,14 @@ void SVO_VCT::BuildVoxelList(World& world)
 
 	glViewport(0, 0, m_voxelSize, m_voxelSize);
 	world.CommitRenderContext(voxel_vc);
+	m_automic_count->BindBase(0);
 
 	// Obtain number of voxel fragments
 	voxel_vc.FlushRenderContext(false);
 	m_automic_count->Sync();
 	m_numVoxelFrag = m_automic_count->GetVal();
 	m_automic_count->SetVal(0);
+	m_automic_count->Sync();
 	std::cout << "Number of Entries in Voxel Fragment List: " << m_numVoxelFrag << std::endl;
 
 	// Create buffers for voxel fragment list
@@ -118,6 +180,8 @@ void SVO_VCT::BuildVoxelList(World& world)
 
 void SVO_VCT::BuildOctree()
 {
+	std::cout << "BuildOctree" << std::endl;
+
 	m_numOfLevel.clear();
 	m_numOfLevel.push_back(1); //root level has one node
 
@@ -128,7 +192,8 @@ void SVO_VCT::BuildOctree()
 	//Calculate the maximum possilbe node number
 	int totalNode = 1;
 	int nTmp = 1;
-	for (int i = 1; i <= m_octreeLevel; ++i)
+	//叶子节点在倒数第二层（m_octreeLevel-1）
+	for (int i = 1; i <= m_octreeLevel - 1; ++i)
 	{
 		nTmp *= 8;
 		totalNode += nTmp;
@@ -156,6 +221,8 @@ void SVO_VCT::BuildOctree()
 	m_voxel_list_pos->SetUnit(6);
 	m_voxel_list_normal->SetImageAccess(GL_READ_ONLY);
 
+	m_automic_count->SetVal(0);
+	m_automic_count->Sync();
 	m_automic_count->BindBase(0);
 
 	ShaderPtr nodeFlagShader = ShaderLoader::Instance()->LoadShader(Config::Instance()->project_path + "shader/SparseVoxelOctree/node_flag.cmp.glsl");
@@ -212,12 +279,15 @@ void SVO_VCT::BuildOctree()
 		m_automic_count->Sync();
 		GLuint tileAllocated = m_automic_count->GetVal();
 		m_automic_count->SetVal(0);
+		m_automic_count->Sync();
 
 		//update offsets for next level
 		int nodeAllocated = tileAllocated * 8;
 		m_numOfLevel.push_back(nodeAllocated); //titleAllocated * 8 is the number of threads we want to launch in the next level
 		uint32_t nextStart = m_startOfLevel[i + 1] + nodeAllocated;
 		m_startOfLevel.push_back(nextStart);
+
+		std::cout << "level " << i + 1 << " : " << nodeAllocated << std::endl;
 	}
 
 	//flag leaf node
@@ -247,12 +317,16 @@ void SVO_VCT::BuildOctree()
 
 void SVO_VCT::AllocBrick()
 {
+	std::cout << "AllocBrick" << std::endl;
+
 	int numOctreeNode = m_startOfLevel[m_octreeLevel];
 
 	m_octree_node_brick_idx = std::make_shared<TextureBuffer>(nullptr, sizeof(GLuint) * numOctreeNode, GL_R32UI);
 	m_octree_node_brick_idx->SetUnit(0);
 	m_octree_node_brick_idx->SetInternalFormat(GL_RGB10_A2UI);
 
+	m_brickPoolDim = ceilf(powf(numOctreeNode, 1.0 / 3)) * 3;
+	std::cout << "brickPoolDim: " << m_brickPoolDim << std::endl;
 	m_octree_brick_color = std::make_shared<Texture3D>(m_brickPoolDim, m_brickPoolDim, m_brickPoolDim, GL_R32UI, GL_RED_INTEGER);
 	m_octree_brick_color->SetUnit(1);
 
@@ -265,6 +339,8 @@ void SVO_VCT::AllocBrick()
 	m_octree_node_idx->SetUnit(4);
 	m_octree_node_idx->SetImageAccess(GL_READ_ONLY);
 
+	m_automic_count->SetVal(0);
+	m_automic_count->Sync();
 	m_automic_count->BindBase(0);
 
 	ShaderPtr brickAllocShader = ShaderLoader::Instance()->LoadShader(Config::Instance()->project_path + "shader/SparseVoxelOctree/brick_alloc.cmp.glsl");
@@ -285,10 +361,13 @@ void SVO_VCT::AllocBrick()
 	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
 	m_octree_node_brick_idx->SyncImage();
 	m_automic_count->SetVal(0);
+	m_automic_count->Sync();
 }
 
 void SVO_VCT::WriteLeafNode()
 {
+	std::cout << "WriteLeafNode" << std::endl;
+
 	m_voxel_list_pos->SetUnit(0);
 	m_voxel_list_pos->SetImageAccess(GL_READ_ONLY);
 
@@ -335,6 +414,8 @@ void SVO_VCT::WriteLeafNode()
 
 void SVO_VCT::SpreadLeafBrick(const Texture3DPtr& octree_brick)
 {
+	std::cout << "SpreadLeafBrick" << std::endl;
+
 	m_octree_node_brick_idx->SetUnit(0);
 	m_octree_node_brick_idx->SetImageAccess(GL_READ_ONLY);
 
@@ -362,6 +443,8 @@ void SVO_VCT::SpreadLeafBrick(const Texture3DPtr& octree_brick)
 
 void SVO_VCT::BorderTransfer(int level, const Texture3DPtr& octree_brick)
 {
+	std::cout << "BorderTransfer" << std::endl;
+
 	m_octree_node_brick_idx->SetUnit(0);
 	m_octree_node_brick_idx->SetImageAccess(GL_READ_ONLY);
 
@@ -411,6 +494,8 @@ void SVO_VCT::BorderTransfer(int level, const Texture3DPtr& octree_brick)
 
 void SVO_VCT::Mipmap(int level, const Texture3DPtr& octree_brick, const glm::vec4& empty_color)
 {
+	std::cout << "Mipmap" << std::endl;
+
 	m_octree_node_idx->SetUnit(0);
 	m_octree_node_idx->SetImageAccess(GL_READ_ONLY);
 
@@ -424,6 +509,8 @@ void SVO_VCT::Mipmap(int level, const Texture3DPtr& octree_brick, const glm::vec
 
 	int numNode = m_numOfLevel[level];
 	int start = m_startOfLevel[level];
+
+	std::cout << "level " << level << " : " << numNode << " " << start << std::endl;
 
 	int dataWidth = 1024;
 	int dataHeight = (numNode + 1023) / dataWidth;
@@ -440,11 +527,13 @@ void SVO_VCT::Mipmap(int level, const Texture3DPtr& octree_brick, const glm::vec
 	mipmapShader->SetImage("u_octreeBrickValue", octree_brick);
 	mipmapShader->SetVector4f("u_emptyColor", empty_color);
 	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
-	m_octree_brick_color->SyncImage();
+	octree_brick->SyncImage();
 }
 
 void SVO_VCT::ShadowMap(World& world)
 {
+	std::cout << "ShadowMap" << std::endl;
+
 	const std::vector<DirectionLight>& lights = world.GetLights();
 
 	MaterialPtr smMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/SparseVoxelOctree/shadow_map.vert",
@@ -473,6 +562,8 @@ void SVO_VCT::ShadowMap(World& world)
 
 void SVO_VCT::LightInjection(World& world)
 {
+	std::cout << "LightInjection" << std::endl;
+
 	m_shadow_map->SetUnit(0);
 
 	m_octree_node_idx->SetUnit(1);
@@ -507,48 +598,4 @@ void SVO_VCT::LightInjection(World& world)
 
 	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
 	m_octree_brick_irradiance->SyncImage();
-}
-
-void SVO_VCT::RenderOctree()
-{
-	int voxelSize = Config::Instance()->voxelSize;
-	int width = Config::Instance()->width;
-	int height = Config::Instance()->height;
-	int octreeLevel = Config::Instance()->octreeLevel;
-
-	ParamTable params = {
-		{"pointSize", float(height) / float(voxelSize)},
-		{"u_voxelDim", voxelSize},
-		{"u_level", octreeLevel}
-	};
-
-	TextureParamTable image_param = {
-		{"u_octreeNodeIdx", m_octree_node_idx}
-	};
-	MaterialPtr volumeVisualizationMaterial = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_visualization.vert",
-		Config::Instance()->project_path + "shader/Visualization/octree_visualization.frag", "", std::move(params), {}, std::move(image_param));
-
-	VolumePtr volume = std::make_unique<Volume>(glm::vec3(0), 1.0f / voxelSize, voxelSize, voxelSize, voxelSize, volumeVisualizationMaterial);
-	/*m_world.AddEntity("octree_visualization", std::move(volume));
-
-	m_camera.SetPosition(glm::vec3(0, 0, 2));
-	m_camera.SetForward(glm::vec3(0, 0, -1));
-
-	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
-
-	ViewContext volume_vc;
-	volume_vc.SetDepthStates(true, true, GL_LESS);
-	m_world.CommitRenderContext(volume_vc, "octree_visualization");
-
-	glEnable(GL_PROGRAM_POINT_SIZE);
-	while (!glfwWindowShouldClose(m_window))
-	{
-		glfwPollEvents();
-		ProcessInput();
-
-		m_camera.FillViewContext(volume_vc);
-		volume_vc.FlushRenderContext(false);
-
-		glfwSwapBuffers(m_window);
-	}*/
 }
