@@ -3,7 +3,9 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 uniform int u_numLeafNode;
 uniform int u_leafStart;
+uniform int u_emptyValue;
 
+layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 layout(rgb10_a2ui) uniform uimageBuffer u_octreeNodeBrickIdx;
 layout(r32ui) uniform uimage3D u_octreeBrickValue;
 
@@ -59,12 +61,35 @@ vec4 voxelValues[8] = {
   vec4(0)
 };
 
-void loadVoxelValues(ivec3 brickAddress) {
+void loadVoxelValues(ivec3 brickAddress)
+{
 	// Collect the original voxel colors (from voxelfragmentlist-voxels)
 	// which were stored at the corners of the brick texture.
-	for (int i = 0; i < 8; ++i) {
+	vec4 avg = vec4(0);
+	int count = 0;
+	uint voxelVals[8];
+	for (int i = 0; i < 8; ++i) 
+	{
 		uint val = imageLoad(u_octreeBrickValue, brickAddress + 2 * ivec3(childOffsets[i])).r;
-		voxelValues[i] = convRGBA8ToVec4(val);
+		voxelVals[i] = val;
+		if (val != u_emptyValue)
+		{
+			voxelValues[i] = convRGBA8ToVec4(val);
+			avg += voxelValues[i];
+			count++;
+		}
+	}
+	avg /= count;
+
+	//填充为空的voxel
+	for (int i = 0; i < 8; ++i)
+	{
+		if (voxelVals[i] == u_emptyValue)
+		{
+			voxelValues[i] = avg;
+			uint val = convVec4ToRGBA8(avg);
+			imageStore(u_octreeBrickValue, brickAddress + 2 * ivec3(childOffsets[i]), uvec4(val, 0, 0, 0));
+		}
 	}
 }
 
@@ -73,6 +98,13 @@ void main()
 	uint thxId = gl_GlobalInvocationID.y * 1024 + gl_GlobalInvocationID.x;
 	if (thxId >= u_numLeafNode)
 		return;
+
+	uint node = imageLoad(u_octreeNodeIdx, u_leafStart + int(thxId)).r;
+	//叶子节点可能为空
+	if ((node & NODE_MASK_CHILD) == 0)
+	{
+		return;
+	}
 
 	uvec4 brick_idx = imageLoad(u_octreeNodeBrickIdx, u_leafStart + int(thxId));
 	ivec3 brickAddress = ivec3(brick_idx.xyz);

@@ -1,11 +1,11 @@
 #version 450 core
 out vec4 fragColor;
 
-flat in vec3 worldPosition;
+flat in vec3 center;
 
 layout(r32ui) uniform uimageBuffer u_octreeNodeIdx;
 layout(rgb10_a2ui) uniform uimageBuffer u_octreeNodeBrickIdx;
-layout(r32ui) uniform uimage3D u_octreeBrickColor;
+layout(r32ui) uniform uimage3D u_octreeBrickValue;
 
 uniform int u_voxelDim;
 uniform int u_level;
@@ -29,7 +29,7 @@ void main()
 	uint voxelDim = u_voxelDim;
 	bool bFlag = true;
 
-	loc = uvec4(worldPosition*u_voxelDim,0);
+	loc = uvec4(center*u_voxelDim,0);
 
 	//decide max and min coord for the root node
 	umin = uvec3(0);
@@ -55,27 +55,45 @@ void main()
 		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 
-	if (!bFlag)
+	if (!bFlag || (node&NODE_MASK_CHILD)==0)
 	{
 		discard;
 	}
 	else
 	{
-		voxelDim /= 2;
+		//voxelDim /= 2;
 
 		//获取voxel在节点中的offset
-		offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
-		offset.y = clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
-		offset.z = clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
+		//offset.x = clamp(int(1 + loc.x - umin.x - voxelDim), 0, 1);
+		//offset.y = clamp(int(1 + loc.y - umin.y - voxelDim), 0, 1);
+		//offset.z = clamp(int(1 + loc.z - umin.z - voxelDim), 0, 1);
 
 		uvec4 brick_idx = imageLoad(u_octreeNodeBrickIdx, childIdx);
-		ivec3 brick_coord = ivec3(brick_idx.xyz) + 2 * offset;
+		//ivec3 brick_coord = ivec3(brick_idx.xyz) + 2 * offset;
 
-		uint voxelColor_v = imageLoad(u_octreeBrickColor, brick_coord).r;
-		vec4 voxelColor = convRGBA8ToVec4(voxelColor_v);
-		voxelColor.rgb /= 255.0;
-		fragColor = vec4(voxelColor.rgb, 1);
-		if(voxelColor.r==0&&voxelColor.g==0&&voxelColor.b==0)
+		fragColor = vec4(0,0,0,1);
+		int count=0;
+		for(int x=0;x<3;x++)
+		{
+			for(int y=0;y<3;y++)
+			{
+				for(int z=0;z<3;z++)
+				{
+					ivec3 brick_coord = ivec3(brick_idx.xyz) + ivec3(x,y,z);
+					uint voxelColor_v = imageLoad(u_octreeBrickValue, brick_coord).r;
+					vec4 voxelColor = convRGBA8ToVec4(voxelColor_v);
+					voxelColor.rgb /= 255.0;
+					if(voxelColor.r>0||voxelColor.g>0||voxelColor.b>0)
+					{
+						fragColor.rgb+=voxelColor.rgb;
+						count++;
+					}
+				}
+			}
+		}
+		fragColor/=float(count);
+
+		if(!(fragColor.r>0||fragColor.g>0||fragColor.b>0))
 		{
 			fragColor = vec4(1,0,0,1);
 			//discard;

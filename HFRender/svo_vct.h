@@ -20,13 +20,19 @@ public:
 	const TextureBufferPtr& GetOctreeNodeIdx() { return m_octree_node_idx; }
 	const TextureBufferPtr& GetOctreeNodeBrickIdx() { return m_octree_node_brick_idx; }
 	const Texture3DPtr& GetOctreeBrickColor() { return m_octree_brick_color; }
+	const Texture3DPtr& GetOctreeBrickIrradiance() { return m_octree_brick_irradiance; }
+	uint32_t GetNodeNum() { return m_startOfLevel[m_octreeLevel]; }
 
+	const Texture2DPtr& GetShadowMap() { return m_shadow_map; }
+	void Check();
+
+	ViewContext m_sm_vc;
 private:
 	void BuildVoxelList(World& world);
 	void BuildOctree();
 	void AllocBrick();
 	void WriteLeafNode();
-	void SpreadLeafBrick(const Texture3DPtr& octree_brick);
+	void SpreadLeafBrick(const Texture3DPtr& octree_brick, const glm::vec4& empty_color);
 	void BorderTransfer(int level, const Texture3DPtr& octree_brick);
 	void Mipmap(int level, const Texture3DPtr& octree_brick, const glm::vec4& empty_color);
 	void ShadowMap(World& world);

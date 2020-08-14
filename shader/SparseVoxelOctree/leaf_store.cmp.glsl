@@ -115,7 +115,8 @@ void main()
 		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 
-	if (!bFlag)
+	//叶子节点可能为空
+	if (!bFlag || (node & NODE_MASK_CHILD) == 0)
 	{
 		return;
 	}

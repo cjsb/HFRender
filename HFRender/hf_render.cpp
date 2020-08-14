@@ -374,13 +374,16 @@ void HFRender::LoadWorld()
 	float half = bbox.half.x;
 	glm::mat4 orth = glm::ortho(center.x - half, center.x + half, center.y - half, center.y + half, center.z - half, center.z + half);
 	m_world.UpdateTransform(orth);
+
+	DirectionLight light(glm::normalize(glm::vec3(-1)), glm::vec3(1));
+	m_world.AddLight(light);
 }
 
 void HFRender::BuildSVO()
 {
 	m_svo_vct = std::make_shared<SVO_VCT>();
 	m_svo_vct->SparseVoxelize(m_world);
-	//m_svo_vct->LightUpdate(m_world);
+	m_svo_vct->LightUpdate(m_world);
 }
 
 void HFRender::RenderWorld()
@@ -528,38 +531,50 @@ void HFRender::RenderOctree()
 	const TextureBufferPtr& octree_node_idx = m_svo_vct->GetOctreeNodeIdx();
 	const TextureBufferPtr& octree_node_brick_idx = m_svo_vct->GetOctreeNodeBrickIdx();
 	const Texture3DPtr& octree_brick_color = m_svo_vct->GetOctreeBrickColor();
+	const Texture3DPtr& octree_brick_irradiance = m_svo_vct->GetOctreeBrickIrradiance();
 
+	/*uint32_t numNode = m_svo_vct->GetNodeNum();
+	std::vector<uint32_t> nodeData(numNode);
+	octree_node_idx->ReadTextureData(nodeData.data(), sizeof(uint32_t) * numNode);
+	dump_node_idx(nodeData.data(), numNode, "C:\\Users\\wanglingye\\wly\\project\\HFRender\\out\\node_idx.txt");*/
+
+	//m_svo_vct->Check();
+
+	int reverse_level = 1;
 	ParamTable params = {
 		{"u_pointSize", float(height) / float(voxelSize)},
 		{"u_voxelDim", voxelSize},
-		{"u_level", octreeLevel - 3}
+		{"u_level", octreeLevel - reverse_level}
 	};
 
 	voxelListPos->SetUnit(0);
 	octree_node_idx->SetUnit(1);
 	octree_node_brick_idx->SetUnit(2);
-	octree_brick_color->SetUnit(3);
+	//octree_brick_color->SetUnit(3);
+	octree_brick_irradiance->SetUnit(3);
 
 	TextureParamTable image_param = {
 		{"u_voxelListPos", voxelListPos},
 		{"u_octreeNodeIdx", octree_node_idx},
 		{"u_octreeNodeBrickIdx", octree_node_brick_idx},
-		{"u_octreeBrickColor", octree_brick_color}
+		//{"u_octreeBrickValue", octree_brick_color}
+		{"u_octreeBrickValue", octree_brick_irradiance}
 	};
 
-	/*MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_visualization.vert",
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_visualization.vert",
 		Config::Instance()->project_path + "shader/Visualization/octree_visualization.frag", "", std::move(params), {}, std::move(image_param));
 
-	VolumePtr volume = std::make_unique<Volume>(glm::vec3(0), 1.0f / voxelSize, voxelSize, voxelSize, voxelSize, material);
-	m_world.AddEntity("octree_visualization", std::move(volume));*/
+	float size = voxelSize / powf(2, reverse_level);
+	VolumePtr volume = std::make_unique<Volume>(glm::vec3(0), 1.0f / size, size, size, size, material);
+	m_world.AddEntity("octree_visualization", std::move(volume));
 
-	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_voxel_visualization.vert",
+	/*MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/octree_voxel_visualization.vert",
 		Config::Instance()->project_path + "shader/Visualization/octree_voxel_visualization.frag", "", std::move(params), {}, std::move(image_param));
 
 	PointListPtr model = std::make_unique<PointList>(numFrag, material);
-	m_world.AddEntity("octree_visualization", std::move(model));
+	m_world.AddEntity("octree_visualization", std::move(model));*/
 
-	m_camera.SetPosition(glm::vec3(0, 0, 0));
+	m_camera.SetPosition(glm::vec3(0.5, 0.5, 0.5));
 	m_camera.SetForward(glm::vec3(1, 0, 0));
 
 	glViewport(0, 0, Config::Instance()->width, Config::Instance()->height);
@@ -568,7 +583,6 @@ void HFRender::RenderOctree()
 	volume_vc.SetDepthStates(true, true, GL_LESS);
 	m_world.CommitRenderContext(volume_vc, "octree_visualization");
 
-	glEnable(GL_PROGRAM_POINT_SIZE);
 	while (!glfwWindowShouldClose(m_window))
 	{
 		glfwPollEvents();
@@ -581,11 +595,55 @@ void HFRender::RenderOctree()
 	}
 }
 
+void HFRender::RenderShadowMap()
+{
+	const Texture2DPtr& shadowMap = m_svo_vct->GetShadowMap();
+
+	TextureParamTable texture_param = {
+		{"u_shadowMap", shadowMap}
+	};
+	MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/Visualization/shadow_map_visualization.vert",
+		Config::Instance()->project_path + "shader/Visualization/shadow_map_visualization.frag", "", {}, std::move(texture_param), {});
+	/*MaterialPtr material = Material::CreateMaterial(Config::Instance()->project_path + "shader/SparseVoxelOctree/shadow_map.vert",
+		Config::Instance()->project_path + "shader/SparseVoxelOctree/shadow_map.frag", "", {});*/
+
+	QuadPtr quad = std::make_unique<Quad>(material);
+	m_world.AddEntity("shadowmap_visualization", std::move(quad));
+	m_world.SetMaterial(material);
+
+	glViewport(0, 0, Config::Instance()->shadowMapSize, Config::Instance()->shadowMapSize);
+
+	ViewContext vc;
+	vc.SetColorMask(glm::bvec4(true));
+	vc.SetDepthStates(false, false, GL_LESS);
+	vc.SetCullFace(false, GL_BACK);
+	vc.SetBlend(false);
+
+	m_world.CommitRenderContext(vc, "shadowmap_visualization");
+	//m_world.CommitRenderContext(vc);
+
+	//const std::vector<DirectionLight>& lights = m_world.GetLights();
+	//m_camera.SetPosition(glm::vec3(0));
+	//m_camera.SetForward(lights[0].GetDirection());
+	//m_camera.SetProjMatrix(lights[0].GetLightProjMatrix());
+	//m_camera.FillViewContext(vc);
+
+	while (!glfwWindowShouldClose(m_window))
+	{
+		glfwPollEvents();
+		ProcessInput();
+
+		vc.FlushRenderContext(false);
+
+		glfwSwapBuffers(m_window);
+	}
+}
+
 int main()
 {
 	Config::Instance()->project_path = "C:/Users/wanglingye/wly/project/HFRender/";
 	Config::Instance()->voxelSize = 256;
-	Config::Instance()->octreeLevel = log2f(256);
+	Config::Instance()->octreeLevel = log2f(Config::Instance()->voxelSize);
 	HFRender* render = HFRender::Instance();
 	render->Init(1024, 780);
 
@@ -600,5 +658,6 @@ int main()
 	render->LoadWorld();
 	render->BuildSVO();
 	//render->RenderVoxelList();
-	render->RenderOctree();
+	//render->RenderOctree();
+	render->RenderShadowMap();
 }

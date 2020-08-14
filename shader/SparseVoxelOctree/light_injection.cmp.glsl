@@ -22,33 +22,6 @@ uniform DirectionLight u_light;
 #define NODE_MASK_CHILD 0x80000000
 #define NODE_MASK_INDEX 0x7FFFFFFF
 
-#define AXIS_X 0
-#define AXIS_Y 1
-#define AXIS_Z 2
-
-const uvec3 childOffsets[8] = {
-  uvec3(0, 0, 0),
-  uvec3(1, 0, 0),
-  uvec3(0, 1, 0),
-  uvec3(1, 1, 0),
-  uvec3(0, 0, 1),
-  uvec3(1, 0, 1),
-  uvec3(0, 1, 1),
-  uvec3(1, 1, 1)
-};
-
-uint vec3ToUintXYZ10(uvec3 val) {
-	return (uint(val.z) & 0x000003FF) << 20U
-		| (uint(val.y) & 0x000003FF) << 10U
-		| (uint(val.x) & 0x000003FF);
-}
-
-uvec3 uintXYZ10ToVec3(uint val) {
-	return uvec3(uint((val & 0x000003FF)),
-		uint((val & 0x000FFC00) >> 10U),
-		uint((val & 0x3FF00000) >> 20U));
-}
-
 vec4 convRGBA8ToVec4(in uint val)
 {
 	return vec4(float((val & 0x000000FF)), float((val & 0x0000FF00) >> 8U),
@@ -62,13 +35,13 @@ uint convVec4ToRGBA8(in vec4 val)
 
 void main()
 {
-	ivec2 mapSize = textureSize(u_lightMap, 0);
+	ivec2 mapSize = textureSize(u_shadowMap, 0);
 	if (gl_GlobalInvocationID.x >= mapSize.x || gl_GlobalInvocationID.y >= mapSize.y)
 		return;
 	
 	vec2 uv = vec2(gl_GlobalInvocationID.x / float(mapSize.x), gl_GlobalInvocationID.y / float(mapSize.y));
 	vec3 pos = texture(u_shadowMap, uv).xyz; //-1~1
-	if (pos.x == 0 && pos.y == 0 && pos.z == 0)
+	if (!(pos.x != 0 || pos.y != 0 || pos.z != 0))
 	{
 		return;
 	}
@@ -86,6 +59,7 @@ void main()
 	ivec3 offset;
 	uint voxelDim = u_voxelDim;
 	uvec3 umin = uvec3(0, 0, 0);
+	bool bFlag = true;
 
 	node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	//这里需要设置成最后一层 u_octreeLevel-1
@@ -109,7 +83,8 @@ void main()
 		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 
-	if (!bFlag)
+	//叶子节点可能为空
+	if (!bFlag || (node & NODE_MASK_CHILD) == 0)
 	{
 		return;
 	}
@@ -129,7 +104,8 @@ void main()
 	vec4 voxelColor = convRGBA8ToVec4(voxelColor_v);
 	voxelColor.rgb /= 255.0;
 
-	vec4 reflectedRadiance = vec4(u_light.color * voxelColor.rgb, 1);
+	//vec4 reflectedRadiance = vec4(u_light.color * voxelColor.rgb, 1);
+	vec4 reflectedRadiance = vec4(u_light.color, 1);
 	reflectedRadiance.rgb *= 255.0;
 	uint reflectedRadiance_v = convVec4ToRGBA8(reflectedRadiance);
 	

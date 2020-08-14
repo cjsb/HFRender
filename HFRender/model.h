@@ -119,6 +119,23 @@ private:
 };
 typedef std::unique_ptr<PointList> PointListPtr;
 
+class Quad :public IEntity
+{
+public:
+	Quad(const MaterialPtr& material);
+	virtual void CommitRenderContext(ViewContext& view_context) override;
+	virtual void SetRenderEnable(bool enable) override;
+	virtual void UpdateMaterialParam(const ParamTable& param, const TextureParamTable& texture_param, const TextureParamTable& image_param)override {};
+	virtual void SetMaterial(const MaterialPtr& material) override {};
+	virtual void SetTransform(const glm::mat4& transform) override {};
+private:
+	ModelDataPtr m_model_data;
+	RenderContext m_rc;
+	MaterialPtr m_material;
+	uint32_t m_flag = 0x00000001;
+};
+typedef std::unique_ptr<Quad> QuadPtr;
+
 class ModelLoader
 {
 public:

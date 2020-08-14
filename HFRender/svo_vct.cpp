@@ -2,6 +2,7 @@
 #include "config.h"
 #include "camera.h"
 #include "stb_image/stb_image.h"
+#include "helpers.h"
 
 SVO_VCT::SVO_VCT()
 {
@@ -18,7 +19,6 @@ SVO_VCT::SVO_VCT()
 	m_shadow_map = std::make_shared<Texture2D>(m_shadowMapSize, m_shadowMapSize, GL_RGB32F, GL_RGB, GL_CLAMP_TO_EDGE, nullptr, GL_FLOAT);
 	m_shadow_map_FBO = std::make_shared<Framebuffer>();
 	m_shadow_map_FBO->AttachColorTexture(m_shadow_map);
-	m_shadow_map_FBO->SetClearColor(glm::vec4(0, 0, 0, 1));
 	assert(m_shadow_map_FBO->CheckStatus());
 }
 
@@ -30,22 +30,18 @@ SVO_VCT::~SVO_VCT()
 void SVO_VCT::SparseVoxelize(World& world)
 {
 	BuildVoxelList(world);
-	//return;
 
 	BuildOctree();
 
 	AllocBrick();
 
 	WriteLeafNode();
-	//return;
 
-	SpreadLeafBrick(m_octree_brick_color);
-	SpreadLeafBrick(m_octree_brick_normal);
-	//return;
+	SpreadLeafBrick(m_octree_brick_color, glm::vec4(0));
+	SpreadLeafBrick(m_octree_brick_normal, glm::vec4(0.5 * 255, 0.5 * 255, 0.5 * 255, 0));
 
 	BorderTransfer(m_octreeLevel - 1, m_octree_brick_color);
 	BorderTransfer(m_octreeLevel - 1, m_octree_brick_normal);
-	//return;
 
 	for (int level = m_octreeLevel - 2; level >= 0; level--)
 	{
@@ -62,9 +58,10 @@ void SVO_VCT::SparseVoxelize(World& world)
 void SVO_VCT::LightUpdate(World& world)
 {
 	ShadowMap(world);
+	return;
 	LightInjection(world);
 
-	SpreadLeafBrick(m_octree_brick_irradiance);
+	SpreadLeafBrick(m_octree_brick_irradiance, glm::vec4(0));
 	BorderTransfer(m_octreeLevel - 1, m_octree_brick_irradiance);
 
 	for (int level = m_octreeLevel - 2; level >= 0; level--)
@@ -360,6 +357,10 @@ void SVO_VCT::AllocBrick()
 	int allocGroupDimY = (dataHeight + 7) / 8;
 	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
 	m_octree_node_brick_idx->SyncImage();
+
+	m_automic_count->Sync();
+	GLuint allocBrickSize = m_automic_count->GetVal();
+	std::cout << "allocBrickSize: " << allocBrickSize << std::endl;
 	m_automic_count->SetVal(0);
 	m_automic_count->Sync();
 }
@@ -412,20 +413,24 @@ void SVO_VCT::WriteLeafNode()
 	m_octree_brick_color->SyncImage();
 }
 
-void SVO_VCT::SpreadLeafBrick(const Texture3DPtr& octree_brick)
+void SVO_VCT::SpreadLeafBrick(const Texture3DPtr& octree_brick, const glm::vec4& empty_color)
 {
 	std::cout << "SpreadLeafBrick" << std::endl;
 
-	m_octree_node_brick_idx->SetUnit(0);
+	m_octree_node_idx->SetUnit(0);
+	m_octree_node_idx->SetImageAccess(GL_READ_ONLY);
+
+	m_octree_node_brick_idx->SetUnit(1);
 	m_octree_node_brick_idx->SetImageAccess(GL_READ_ONLY);
 
-	octree_brick->SetUnit(1);
+	octree_brick->SetUnit(2);
 	octree_brick->SetImageAccess(GL_READ_WRITE);
 
 	ShaderPtr spreadLeafShader = ShaderLoader::Instance()->LoadShader(Config::Instance()->project_path + "shader/SparseVoxelOctree/spread_leaf.cmp.glsl");
 	
 	int numLeafNode = m_numOfLevel[m_octreeLevel - 1];
 	int leafStart = m_startOfLevel[m_octreeLevel - 1];
+	int emptyValue = convVec4ToRGBA8(empty_color);
 
 	int dataWidth = 1024;
 	int dataHeight = (numLeafNode + 1023) / dataWidth;
@@ -435,6 +440,8 @@ void SVO_VCT::SpreadLeafBrick(const Texture3DPtr& octree_brick)
 	spreadLeafShader->Use();
 	spreadLeafShader->SetInteger("u_numLeafNode", numLeafNode);
 	spreadLeafShader->SetInteger("u_leafStart", leafStart);
+	spreadLeafShader->SetInteger("u_emptyValue", emptyValue);
+	spreadLeafShader->SetImage("u_octreeNodeIdx", m_octree_node_idx);
 	spreadLeafShader->SetImage("u_octreeNodeBrickIdx", m_octree_node_brick_idx);
 	spreadLeafShader->SetImage("u_octreeBrickValue", octree_brick);
 	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
@@ -546,18 +553,18 @@ void SVO_VCT::ShadowMap(World& world)
 	camera.SetForward(lights[0].GetDirection());
 	camera.SetProjMatrix(lights[0].GetLightProjMatrix());
 
-	ViewContext sm_vc;
-	sm_vc.SetColorMask(glm::bvec4(true));
-	sm_vc.SetDepthStates(true, true, GL_LESS);
-	sm_vc.SetCullFace(false, GL_BACK);
-	sm_vc.SetBlend(false);
-	sm_vc.SetFramebuffer(m_shadow_map_FBO);
+	//ViewContext sm_vc;
+	m_sm_vc.SetColorMask(glm::bvec4(true));
+	m_sm_vc.SetDepthStates(true, true, GL_LESS);
+	m_sm_vc.SetCullFace(false, GL_BACK);
+	m_sm_vc.SetBlend(false);
+	m_sm_vc.SetFramebuffer(m_shadow_map_FBO);
 
 	glViewport(0, 0, m_shadowMapSize, m_shadowMapSize);
 
-	camera.FillViewContext(sm_vc);
-	world.CommitRenderContext(sm_vc);
-	sm_vc.FlushRenderContext(true);
+	camera.FillViewContext(m_sm_vc);
+	world.CommitRenderContext(m_sm_vc);
+	m_sm_vc.FlushRenderContext(true);
 }
 
 void SVO_VCT::LightInjection(World& world)
@@ -598,4 +605,38 @@ void SVO_VCT::LightInjection(World& world)
 
 	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
 	m_octree_brick_irradiance->SyncImage();
+}
+
+void SVO_VCT::Check()
+{
+	std::cout << "Check" << std::endl;
+
+	int numOctreeNode = m_startOfLevel[m_octreeLevel];
+
+	m_octree_node_brick_idx->SetUnit(0);
+	m_octree_node_brick_idx->SetImageAccess(GL_READ_ONLY);
+
+	m_automic_count->SetVal(0);
+	m_automic_count->Sync();
+	m_automic_count->BindBase(0);
+
+	ShaderPtr checkShader = ShaderLoader::Instance()->LoadShader(Config::Instance()->project_path + "shader/SparseVoxelOctree/check_brick_idx.cmp.glsl");
+
+	checkShader->Use();
+	checkShader->SetInteger("u_numOctreeNode", numOctreeNode);
+	checkShader->SetInteger("u_brickPoolDim", m_brickPoolDim);
+	checkShader->SetImage("u_octreeNodeBrickIdx", m_octree_node_brick_idx);
+
+	int dataWidth = 1024;
+	int dataHeight = (numOctreeNode + 1023) / dataWidth;
+	int allocGroupDimX = dataWidth / 8;
+	int allocGroupDimY = (dataHeight + 7) / 8;
+	glDispatchCompute(allocGroupDimX, allocGroupDimY, 1);
+	m_octree_node_brick_idx->SyncImage();
+
+	m_automic_count->Sync();
+	GLuint errorNum = m_automic_count->GetVal();
+	std::cout << "brickIdx ErrorNum: " << errorNum << std::endl;
+	m_automic_count->SetVal(0);
+	m_automic_count->Sync();
 }

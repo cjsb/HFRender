@@ -4,6 +4,7 @@
 #include <fstream>
 #include <unordered_map>
 #include "helpers.h"
+#include "config.h"
 
 ModelData::ModelData(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices)
 {
@@ -155,24 +156,49 @@ void ModelEntity::UpdateMaterialParam(const ParamTable& param, const TexturePara
 Volume::Volume(glm::vec3 start, float stride, uint32_t width, uint32_t height, uint32_t depth, const MaterialPtr& material)
     :m_start(start), m_stride(stride), m_width(width), m_height(height), m_depth(depth), m_material(material)
 {
+    std::string path = Config::Instance()->project_path + "resource/model/cube_2.obj";
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+
+    std::string err;
+    if (!tinyobj::LoadObj(shapes, materials, err, path.c_str(), "") || shapes.size() == 0) 
+    {
+        std::cerr << "Failed to load object with path '" << path << "'. Error message:" << std::endl << err << std::endl;
+        assert(0);
+    }
+    tinyobj::mesh_t mesh = shapes[0].mesh;
+
     std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+    uint32_t count = 0;
     for (uint32_t x = 0;x < width;x++)
     {
         for (uint32_t y = 0;y < height;y++)
         {
             for (uint32_t z = 0;z < depth;z++)
             {
-                Vertex vertex;
-                vertex.position = start + glm::vec3(x * stride, y * stride, z * stride);
-                vertices.emplace_back(vertex);
+                glm::vec3 point = start + glm::vec3(x, y, z) * stride;
+                glm::vec3 center = point + glm::vec3(0.5 * stride);
+                uint32_t numPoint = mesh.positions.size() / 3;
+                for (int i = 0; i < numPoint; i++)
+                {
+                    Vertex vertex;
+                    vertex.position = point + glm::vec3(mesh.positions[i * 3], mesh.positions[i * 3 + 1], mesh.positions[i * 3 + 2]) * stride;
+                    vertex.normal = center;
+                    vertices.emplace_back(vertex);
+                }
+                for (int i = 0; i < mesh.indices.size(); i++)
+                {
+                    indices.push_back(count + mesh.indices[i]);
+                }
+                count += numPoint;
             }
         }
     }
 
     m_rc.SetTransform(glm::mat4(1));
     m_rc.SetMaterial(material);
-    m_rc.SetRenderMode(GL_POINTS);
-    m_model_data = std::make_shared<ModelData>(vertices, std::vector<uint32_t>());
+    m_model_data = std::make_shared<ModelData>(vertices, indices);
     m_model_data->FillRenderContext(&m_rc);
 }
 
@@ -222,6 +248,36 @@ void PointList::CommitRenderContext(ViewContext& view_context)
 }
 
 void PointList::SetRenderEnable(bool enable)
+{
+    if (enable)
+    {
+        m_flag |= 0x00000001;
+    }
+    else
+    {
+        m_flag &= (~0x00000001);
+    }
+}
+
+Quad::Quad(const MaterialPtr& material)
+{
+    std::string path = Config::Instance()->project_path + "resource/model/quad_1.obj";
+    m_model_data = ModelLoader::Instance()->LoadModel(path);
+    m_model_data->FillRenderContext(&m_rc);
+
+    m_rc.SetTransform(glm::mat4(1));
+    m_rc.SetMaterial(material);
+}
+
+void Quad::CommitRenderContext(ViewContext& view_context)
+{
+    if (m_model_data && (m_flag & 0x00000001))
+    {
+        view_context.AddRenderContext(&m_rc);
+    }
+}
+
+void Quad::SetRenderEnable(bool enable)
 {
     if (enable)
     {
@@ -308,8 +364,15 @@ std::vector<ModelDataPtr> ModelLoader::LoadMesh(const std::string& path, const s
         {
             Vertex vertex;
             vertex.position = glm::vec3(shape.mesh.positions[i * 3], shape.mesh.positions[i * 3 + 1], shape.mesh.positions[i * 3 + 2]);
-            vertex.normal = glm::vec3(shape.mesh.normals[i * 3], shape.mesh.normals[i * 3 + 1], shape.mesh.normals[i * 3 + 2]);
-            vertex.uv = glm::vec2(shape.mesh.texcoords[i * 2], shape.mesh.texcoords[i * 2 + 1]);
+            if (shape.mesh.normals.size() > 0)
+            {
+                vertex.normal = glm::vec3(shape.mesh.normals[i * 3], shape.mesh.normals[i * 3 + 1], shape.mesh.normals[i * 3 + 2]);
+            }
+            if (shape.mesh.texcoords.size() > 0)
+            {
+                vertex.uv = glm::vec2(shape.mesh.texcoords[i * 2], shape.mesh.texcoords[i * 2 + 1]);
+            }
+            
             vertices[i] = vertex;
             aabb.Merge(vertex.position);
         }

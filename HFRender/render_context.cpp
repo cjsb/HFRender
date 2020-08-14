@@ -19,7 +19,14 @@ void RenderContext::Render(const ViewContext& view_context)
 
 	if (m_render_mode == GL_TRIANGLES)
 	{
-		glDrawElements(GL_TRIANGLES, m_prim_count * 3, GL_UNSIGNED_INT, m_index_offset);
+		if (m_prim_count > 0)
+		{
+			glDrawElements(GL_TRIANGLES, m_prim_count * 3, GL_UNSIGNED_INT, m_index_offset);
+		}
+		else
+		{
+			glDrawArrays(GL_TRIANGLES, 0, m_point_count);
+		}
 	}
 	else if(m_render_mode == GL_POINTS)
 	{

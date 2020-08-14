@@ -76,3 +76,22 @@ void dump_buffer_data(uint32_t* data, uint32_t num, const std::string& path)
 
 	file.close();
 }
+
+void dump_node_idx(uint32_t* data, uint32_t num, const std::string& path)
+{
+	std::ofstream file(path);
+	for (int i = 0; i < num; i++)
+	{
+		uint32_t d = data[i];
+		uint32_t f = (d & 0x80000000) >> 31;
+		d = (d & 0x7FFFFFFF);
+		file << f << " " << d << std::endl;
+	}
+
+	file.close();
+}
+
+int convVec4ToRGBA8(const glm::vec4& val)
+{
+	return (int(val.w) & 0x000000FF) << 24U | (int(val.z) & 0x000000FF) << 16U | (int(val.y) & 0x000000FF) << 8U | (int(val.x) & 0x000000FF);
+}

@@ -6,7 +6,7 @@
 #include "config.h"
 #include "svo_vct.h"
 
-const float DEFAULT_CAMERA_MOVE_SPEED = 1.f;
+const float DEFAULT_CAMERA_MOVE_SPEED = 0.2f;
 const float DEFAULT_MOUSE_SENSITIVITY = 0.001f;
 
 class HFRender
@@ -33,6 +33,7 @@ public:
 	void BuildSVO();
 	void RenderVoxelList();
 	void RenderOctree();
+	void RenderShadowMap();
 
 private:
 	HFRender() {}

@@ -15,10 +15,6 @@ layout(r32ui) uniform uimage3D u_octreeBrickValue;
 #define NODE_MASK_CHILD 0x80000000
 #define NODE_MASK_INDEX 0x7FFFFFFF
 
-#define AXIS_X 0
-#define AXIS_Y 1
-#define AXIS_Z 2
-
 const uvec3 childOffsets[8] = {
   uvec3(0, 0, 0),
   uvec3(1, 0, 0),
@@ -55,12 +51,12 @@ uint convVec4ToRGBA8(in vec4 val)
 
 const float gaussianWeight[4] = { 0.25, 0.125, 0.0625, 0.03125 };
 
-uint childIndices[8];
-uvec4 childBrickIndices[8];
+uint childIndices[8] = {0,0,0,0,0,0,0,0};
+uvec4 childBrickIndices[8] = { uvec4(0),uvec4(0),uvec4(0),uvec4(0),uvec4(0),uvec4(0),uvec4(0),uvec4(0) };
 
 void loadChildTile(int chlidIdx) {
 	for (int i = 0; i < 8; ++i) {
-		childIndices[i] = imageLoad(u_octreeNodeIdx, chlidIdx + i).x;
+		childIndices[i] = imageLoad(u_octreeNodeIdx, chlidIdx + i).r;
 		childBrickIndices[i] = imageLoad(u_octreeNodeBrickIdx, chlidIdx + i);
 	}
 }
@@ -68,12 +64,14 @@ void loadChildTile(int chlidIdx) {
 vec4 getColor(ivec3 pos) {
 	ivec3 childPos = ivec3(round(vec3(pos) / 4.0));
 	int offset = childPos.x + 2 * childPos.y + 4 * childPos.z;
-	//if ((childIndices[offset] & NODE_MASK_INDEX) == 0 && u_level != u_octreeLevel - 2)
-	//    return u_emptyColor;
+	/*if ((childIndices[offset] & NODE_MASK_INDEX) == 0 && u_level != u_octreeLevel - 2)
+	    return u_emptyColor;*/
 	//叶子节点可能为空
 	if ((childIndices[offset] & NODE_MASK_CHILD) == 0)
+	{
 		return u_emptyColor;
-
+	}
+		
 	ivec3 localPos = pos - 2 * childPos;
 	ivec3 childBrickAddress = ivec3(childBrickIndices[offset].xyz);
 	uint val = imageLoad(u_octreeBrickValue, childBrickAddress + localPos).r;
@@ -96,15 +94,24 @@ vec4 mipmapIsotropic(ivec3 pos) {
 					int manhattanDist = abs(x) + abs(y) + abs(z);
 					float weight = gaussianWeight[manhattanDist];
 					vec4 lookupColor = getColor(lookupPos);
-
-					col += weight * lookupColor;
-					weightSum += weight;
+					if (lookupColor.x != u_emptyColor.x || 
+						lookupColor.y != u_emptyColor.y || 
+						lookupColor.z != u_emptyColor.z)
+					{
+						col += weight * lookupColor;
+						weightSum += weight;
+					}
 				}
 			}
 		}
 	}
 
-	return col / weightSum;
+	if (weightSum > 0)
+	{
+		col /= weightSum;
+	}
+
+	return col;
 }
 
 void main()
@@ -113,8 +120,8 @@ void main()
 	if (thxId >= u_numNode)
 		return;
 
-	uint nodeIdx = imageLoad(u_octreeNodeIdx, u_start + int(thxId)).r;
-	uint chlidIdx = nodeIdx & NODE_MASK_INDEX;
+	uint node = imageLoad(u_octreeNodeIdx, u_start + int(thxId)).r;
+	uint chlidIdx = node & NODE_MASK_INDEX;
 	if (chlidIdx == 0)
 	{
 		return;

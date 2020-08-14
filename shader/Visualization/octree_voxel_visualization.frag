@@ -55,7 +55,7 @@ void main()
 		node = imageLoad(u_octreeNodeIdx, childIdx).r;
 	}
 
-	if (!bFlag)
+	if (!bFlag || (node&NODE_MASK_CHILD)==0)
 	{
 		discard;
 	}

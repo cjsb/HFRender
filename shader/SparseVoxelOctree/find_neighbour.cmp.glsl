@@ -85,7 +85,7 @@ bool find(uvec3 loc, out uint neigh_idx)
 	if (bFlag)
 	{
 		//叶子节点可能为空
-		bFlag = (node & NODE_MASK_CHILD) == 1;
+		bFlag = (node & NODE_MASK_CHILD) != 0;
 		neigh_idx = childIdx;
 	}
 

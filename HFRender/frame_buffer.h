@@ -30,7 +30,7 @@ protected:
 	Texture2DPtr m_depth_texture;
 	GLuint m_color_attachment = GL_COLOR_ATTACHMENT0;
 
-	glm::vec4 m_clear_color = glm::vec4(0.f, 0.f, 0.f, 0.f);
+	glm::vec4 m_clear_color = glm::vec4(0.f, 0.f, 0.f, 1.f);
 	float m_clear_depth = 1.f;
 	uint8_t m_clear_stencil = 0;
 };
